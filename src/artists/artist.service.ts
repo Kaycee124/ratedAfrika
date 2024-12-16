@@ -7,6 +7,7 @@ import { CreateArtistDto } from './dtos/create-artist.dto';
 import { UpdateArtistDto } from './dtos/update-artist.dto';
 import { QueryArtistDto } from './dtos/query-artist.dto';
 import { User } from '../users/user.entity';
+import { Label } from 'src/label/label.entity';
 // import { customLoggerClass } from 'src/logger/logger.service';
 
 // Define consistent response interface
@@ -23,6 +24,10 @@ export class ArtistsService {
   constructor(
     @InjectRepository(Artist)
     private readonly artistRepository: Repository<Artist>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    @InjectRepository(Label)
+    private readonly labelRepository: Repository<Label>,
   ) {}
 
   async create(

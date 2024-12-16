@@ -16,33 +16,28 @@ import { CollaboratorType } from '../interfaces/collaborator-type.enum';
 import { PaymentInfoDto } from './paymentinfo.dto';
 
 export class CreateCollaboratorDto {
-  @IsNotEmpty()
   @IsString()
   name: string;
 
   @IsEmail()
-  @IsNotEmpty()
   email: string;
 
   @IsEnum(CollaboratorType)
-  @IsNotEmpty()
   type: CollaboratorType;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
   artistId?: string;
 
   @IsString()
-  @IsNotEmpty()
   taxId: string;
 
   @ValidateNested()
   @Type(() => PaymentInfoDto)
-  @IsNotEmpty()
   paymentInfo: PaymentInfoDto;
 }
 // src/collaborators/dto/create-split.dto.ts
-import { SplitType } from '../interfaces/collaborator-type.enum';
+import { SplitType } from '../types/collaborator-types';
 
 export class CreateSplitDto {
   @IsUUID()

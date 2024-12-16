@@ -2,167 +2,50 @@ import { Module, forwardRef, Global } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { UsersModule } from 'src/users/users.module';
-import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './jwt.strategy';
-import { ConfigModule, ConfigService } from '@nestjs/config';
 import { GoogleStrategy } from './strategies/google-strategy';
 import { SpotifyStrategy } from './strategies/spotify-strategy';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { User } from 'src/users/user.entity';
-import { PasswordReset } from 'src/users/Entities/password-reset-token.entity';
-import { EmailVerificationToken } from 'src/users/Entities/email-verification.entity';
-import { Otp } from 'src/users/Entities/otp.entity';
-import { TokenService } from './services/token.service';
-import { EmailService } from './services/email.service';
-import { OtpService } from './services/otp.service';
+import { ConfigModule } from '@nestjs/config';
 import { googleOAuthConfig } from 'src/config/google-oauth.config';
 import spotifyOauth from 'src/config/spotify-oauth';
-import { MailerModule } from '@nestjs-modules/mailer';
-import { join } from 'path';
-import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
-import { JwtAuthGuard } from './guards/jwt/jwt.guard';
-import { UserRepository } from './repositories/user.repository';
-import { PasswordResetRepository } from './repositories/password-reset-token.repository';
-import { EmailVerificationTokenRepository } from './repositories/email-verification-token.repository';
-// import { JwtCoreModule } from '../core/jwt/jwt-core.module';
+// import { SharedModule } from 'src/core/shared/shared.module';
 
-// CHANGE: Added @Global() decorator to prevent multiple instantiations
+// Note: Following items have been moved to infrastructure:
+
+// Moved to DatabaseModule:
+// - TypeOrmModule and all entity imports
+// - Database connection configuration
+
+// Moved to SharedModule:
+// - JwtModule configuration
+// - TokenService
+// - EmailService
+// - OtpService
+// - JwtAuthGuard
+// - All repositories (User, PasswordReset, EmailVerification)
+
+// Moved to SharedModule (Mailer Section):
+// - MailerModule configuration
+// - Mailer templates configuration
+// - Email-related utilities
+
 @Global()
 @Module({
   imports: [
-    // CHANGE: Maintain circular dependency resolution with UsersModule
     forwardRef(() => UsersModule),
-
-    // Configure PassportModule with JWT as default strategy
+    // SharedModule,
     PassportModule.register({
       defaultStrategy: 'jwt',
     }),
-
-    // Register all required entities
-    TypeOrmModule.forFeature([
-      User,
-      PasswordReset,
-      EmailVerificationToken,
-      Otp,
-    ]),
-
-    // CHANGE: Enhanced MailerModule configuration with better error handling
-    MailerModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: async (configService: ConfigService) => {
-        const host = configService.get('mailer.host');
-        const port = configService.get('mailer.port');
-        const user = configService.get('mailer.user');
-        const pass = configService.get('mailer.pass');
-
-        // CHANGE: Added configuration validation
-        if (!host || !port || !user || !pass) {
-          throw new Error('Missing required mailer configuration');
-        }
-
-        return {
-          transport: {
-            host,
-            port,
-            secure: configService.get('mailer.secure', false),
-            auth: { user, pass },
-            // CHANGE: Added timeout configurations
-            connectionTimeout: 10000,
-            greetingTimeout: 10000,
-            socketTimeout: 10000,
-          },
-          defaults: {
-            from: configService.get('mailer.from'),
-          },
-          template: {
-            dir: join(__dirname, 'templates'),
-            adapter: new HandlebarsAdapter(),
-            options: {
-              strict: true,
-            },
-          },
-          // CHANGE: Added preview option for development
-          preview: process.env.NODE_ENV !== 'production',
-        };
-      },
-    }),
-
-    // CHANGE: Enhanced JWT configuration with validation
-    JwtModule.registerAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: async (configService: ConfigService) => {
-        const secret = configService.get<string>('JWT_SECRET');
-
-        if (!secret) {
-          throw new Error('JWT_SECRET is not defined in environment variables');
-        }
-
-        return {
-          secret,
-          signOptions: {
-            expiresIn: configService.get('JWT_EXPIRATION', '1h'),
-            algorithm: 'HS256', // CHANGE: Explicitly set algorithm
-          },
-          verifyOptions: {
-            algorithms: ['HS256'], // CHANGE: Restrict allowed algorithms
-          },
-        };
-      },
-    }),
-
-    // OAuth configurations
     ConfigModule.forFeature(googleOAuthConfig),
     ConfigModule.forFeature(spotifyOauth),
   ],
-
-  // CHANGE: Added repositories to providers
-  providers: [
-    // Core services
-    AuthService,
-    TokenService,
-    EmailService,
-    OtpService,
-
-    // Strategies
-    JwtStrategy,
-    GoogleStrategy,
-    SpotifyStrategy,
-
-    // CHANGE: Added guard as a provider
-    JwtAuthGuard,
-
-    // CHANGE: Added repositories
-    UserRepository,
-    PasswordResetRepository,
-    EmailVerificationTokenRepository,
-  ],
-
+  providers: [AuthService, JwtStrategy, GoogleStrategy, SpotifyStrategy],
   controllers: [AuthController],
-
-  // CHANGE: Updated exports to include necessary services and guard
-  exports: [
-    JwtAuthGuard, // CHANGE: Export guard for global usage
-    JwtModule, // For JWT functionality in other modules
-    TokenService, // For token operations
-    AuthService, // Core authentication logic
-    EmailService, // For email operations
-    OtpService, // For OTP operations
-  ],
+  exports: [AuthService],
 })
-export class AuthModule {
-  // CHANGE: Added constructor for initialization logging
-  constructor(private configService: ConfigService) {
-    if (process.env.NODE_ENV !== 'production') {
-      console.log(
-        'AuthModule initialized with JWT expiration:',
-        this.configService.get('JWT_EXPIRATION', '1h'),
-      );
-    }
-  }
-}
+export class AuthModule {}
 // import { Module, forwardRef } from '@nestjs/common';
 // import { AuthService } from './auth.service';
 // import { AuthController } from './auth.controller';

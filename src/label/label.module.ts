@@ -45,28 +45,16 @@
 // })
 // export class LabelsModule {}
 
-// label.module.ts
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { LabelsController } from './label.controller';
 import { LabelsService } from './label.service';
-import { Label } from './label.entity';
-import { Artist } from '../artists/entities/artist.entity';
 import { UsersModule } from '../users/users.module';
-import { User } from 'src/users/user.entity';
-import { SongsModule } from 'src/songs/songs.module';
+import { SongsModule } from '../songs/songs.module';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Label, Artist, User]),
-    UsersModule,
-    SongsModule,
-  ],
+  imports: [UsersModule, SongsModule],
   controllers: [LabelsController],
-  providers: [
-    LabelsService,
-    // REMOVED: JwtModule and JwtService from providers
-  ],
+  providers: [LabelsService],
   exports: [LabelsService],
 })
 export class LabelsModule {}

@@ -71,28 +71,42 @@
 // })
 // export class ArtistsModule {}
 // artists.module.ts
+// import { Module, forwardRef } from '@nestjs/common';
+// import { TypeOrmModule } from '@nestjs/typeorm';
+// import { ConfigModule } from '@nestjs/config';
+// import { Label } from 'src/label/label.entity';
+// import { Song } from 'src/songs/entities/song.entity';
+// import { User } from 'src/users/user.entity';
+// import { ArtistsController } from './artist.controller';
+// import { ArtistsService } from './artist.service';
+// import { Artist } from './entities/artist.entity';
+// import { AuthModule } from 'src/auth/auth.module';
+
+// @Module({
+//   imports: [
+//     TypeOrmModule.forFeature([Artist, Song, User, Label]),
+//     ConfigModule,
+//     forwardRef(() => AuthModule),
+//   ],
+//   controllers: [ArtistsController],
+//   providers: [
+//     ArtistsService,
+//     // REMOVED: TokenService
+//   ],
+//   exports: [ArtistsService],
+// })
+// export class ArtistsModule {}
+
 import { Module, forwardRef } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { ConfigModule } from '@nestjs/config';
-import { Label } from 'src/label/label.entity';
-import { Song } from 'src/songs/entities/song.entity';
-import { User } from 'src/users/user.entity';
 import { ArtistsController } from './artist.controller';
 import { ArtistsService } from './artist.service';
-import { Artist } from './entities/artist.entity';
-import { AuthModule } from 'src/auth/auth.module';
+import { AuthModule } from '../auth/auth.module';
+import { DatabaseModule } from 'src/core/database/database.module';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Artist, Song, User, Label]),
-    ConfigModule,
-    forwardRef(() => AuthModule),
-  ],
+  imports: [forwardRef(() => AuthModule), DatabaseModule],
   controllers: [ArtistsController],
-  providers: [
-    ArtistsService,
-    // REMOVED: TokenService
-  ],
+  providers: [ArtistsService],
   exports: [ArtistsService],
 })
 export class ArtistsModule {}

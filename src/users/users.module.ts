@@ -59,47 +59,40 @@
 // })
 // export class UsersModule {}
 
-// users.module.ts
 import { Module, forwardRef } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
-import { User } from './user.entity';
 import { customLoggerClass } from 'src/logger/logger.service';
-import { EmailVerificationTokenRepository } from 'src/auth/repositories/email-verification-token.repository';
-import { PasswordResetRepository } from 'src/auth/repositories/password-reset-token.repository';
-import { UserRepository } from 'src/auth/repositories/user.repository';
-import { PasswordReset } from './Entities/password-reset-token.entity';
-import { EmailVerificationToken } from './Entities/email-verification.entity';
 import { AuthModule } from 'src/auth/auth.module';
-import { Otp } from './Entities/otp.entity';
+// import { SharedModule } from 'src/core/shared/shared.module';
+
+// REMOVED: These imports are now handled by DatabaseModule
+// import { TypeOrmModule } from '@nestjs/typeorm';
+// import { User } from './user.entity';
+// import { PasswordReset } from './Entities/password-reset-token.entity';
+// import { EmailVerificationToken } from './Entities/email-verification.entity';
+// import { Otp } from './Entities/otp.entity';
+
+// REMOVED: These repositories are now provided by SharedModule
+// import { UserRepository } from 'src/auth/repositories/user.repository';
+// import { PasswordResetRepository } from 'src/auth/repositories/password-reset-token.repository';
+// import { EmailVerificationTokenRepository } from 'src/auth/repositories/email-verification-token.repository';
 
 @Module({
   imports: [
-    // Entity registration
-    TypeOrmModule.forFeature([
-      User,
-      PasswordReset,
-      EmailVerificationToken,
-      Otp,
-    ]),
-    // Maintain circular dependency resolution
+    // SharedModule,
     forwardRef(() => AuthModule),
+    // REMOVED: TypeORM feature registration is now in DatabaseModule
   ],
   providers: [
     UsersService,
-    UserRepository,
-    PasswordResetRepository,
-    EmailVerificationTokenRepository,
     customLoggerClass,
-    // REMOVED: JwtService and JwtModule as they're now provided by global AuthModule
+    // REMOVED: Repositories are now provided by SharedModule
   ],
   controllers: [UsersController],
   exports: [
     UsersService,
-    UserRepository,
-    PasswordResetRepository,
-    EmailVerificationTokenRepository,
+    // REMOVED: Repository exports as they're now provided globally by SharedModule
   ],
 })
 export class UsersModule {}
