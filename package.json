@@ -10,6 +10,8 @@
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
+    "start:azure": "ts-node-dev --respawn --transpile-only src/main.ts",
+    "preinstall:azure": "npm install -g ts-node-dev typescript",
     "start:dev:ts-node": "ts-node -r tsconfig-paths/register src/main.ts",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
