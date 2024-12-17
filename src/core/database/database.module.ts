@@ -1,4 +1,5 @@
 // src/infrastructure/database/database.module.ts
+// why is this failing lawd
 import { Module, Global } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
