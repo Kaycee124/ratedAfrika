@@ -7,8 +7,19 @@ async function bootstrap() {
 
   app.useGlobalPipes(new ValidationPipe()); // Ensures validation works globally
   app.useGlobalFilters(new HttpErrorFilter());
-  app.enableCors();
+  // app.enableCors();
 
-  await app.listen(3000);
+  // Configure CORS for production
+  app.enableCors({
+    origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    credentials: true,
+  });
+
+  // await app.listen(3000);
+  // Use environment provided port or fallback to 3000
+  const port = process.env.PORT || 3000;
+  await app.listen(port);
+  console.log(`Application is running on: http://localhost:${port}`);
 }
 bootstrap();
