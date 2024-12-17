@@ -6,9 +6,13 @@ import {
   ManyToOne,
   OneToMany,
 } from 'typeorm';
-import { User } from 'src/users/user.entity';
-import { Song } from '../../songs/entities/song.entity';
-import { Label } from 'src/label/label.entity';
+// import { User } from 'src/users/user.entity';
+// import { Song } from '../../songs/entities/song.entity';
+// import { Label } from 'src/label/label.entity';
+// Remove direct Song import
+import type { Song } from '../../songs/entities/song.entity'; // Use type import
+import type { User } from '../../users/user.entity';
+import type { Label } from '../../label/label.entity';
 
 @Entity('artists')
 export class Artist {
@@ -51,13 +55,27 @@ export class Artist {
   };
   //relationships
 
-  @ManyToOne(() => User, (user) => user.artistProfiles)
+  // @ManyToOne(() => User, (user) => user.artistProfiles)
+  // user: User;
+
+  // @OneToMany(() => Song, (song) => song.artist)
+  // songs: Song[];
+
+  // @OneToMany('Song', 'artist') // Use string literal for Song
+  // songs: Song[];
+
+  // @ManyToOne(() => Label, (label) => label.artistRoster, {
+  //   eager: false,
+  // })
+  // label: Label;
+  // Relationships using string literals for circular dependencies
+  @ManyToOne('User', 'artistProfiles')
   user: User;
 
-  @OneToMany(() => Song, (song) => song.artist)
+  @OneToMany('Song', 'artist')
   songs: Song[];
 
-  @ManyToOne(() => Label, (label) => label.artistRoster, {
+  @ManyToOne('Label', 'artistRoster', {
     eager: false,
   })
   label: Label;

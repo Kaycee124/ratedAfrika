@@ -64,7 +64,9 @@ import {
   OneToMany,
 } from 'typeorm';
 import { CollaboratorType } from '../types/collaborator-types';
-import { CollaboratorSplit } from './collaborator-split.entity';
+// import { CollaboratorSplit } from './collaborator-split.entity';
+// Use type import for circular dependency
+import type { CollaboratorSplit } from './collaborator-split.entity';
 
 @Entity('collaborators')
 export class Collaborator {
@@ -104,6 +106,8 @@ export class Collaborator {
   @DeleteDateColumn()
   deletedAt?: Date;
 
-  @OneToMany(() => CollaboratorSplit, (split) => split.collaborator)
+  // @OneToMany(() => CollaboratorSplit, (split) => split.collaborator)
+  // splits: CollaboratorSplit[];
+  @OneToMany('CollaboratorSplit', 'collaborator')
   splits: CollaboratorSplit[];
 }

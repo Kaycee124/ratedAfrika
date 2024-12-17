@@ -9,8 +9,10 @@ import {
   DeleteDateColumn,
   JoinColumn,
 } from 'typeorm';
-import { Collaborator } from './collaborator.entity';
+// import { Collaborator } from './collaborator.entity';
 import { SplitType } from '../types/collaborator-types';
+// Use type import for circular dependency
+import type { Collaborator } from './collaborator.entity';
 
 @Entity('collaborator_splits')
 export class CollaboratorSplit {
@@ -20,7 +22,12 @@ export class CollaboratorSplit {
   @Column('uuid')
   collaboratorId: string;
 
-  @ManyToOne(() => Collaborator, (collaborator) => collaborator.splits, {
+  // @ManyToOne(() => Collaborator, (collaborator) => collaborator.splits, {
+  //   onDelete: 'CASCADE',
+  // })
+  // @JoinColumn({ name: 'collaboratorId' })
+  // collaborator: Collaborator;
+  @ManyToOne('Collaborator', 'splits', {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'collaboratorId' })

@@ -151,9 +151,11 @@ import {
 import { Otp } from './Entities/otp.entity';
 import { PasswordReset } from './Entities/password-reset-token.entity';
 import { EmailVerificationToken } from './Entities/email-verification.entity';
-import { Artist } from 'src/artists/entities/artist.entity';
-import { Label } from 'src/label/label.entity';
-
+// import { Artist } from 'src/artists/entities/artist.entity';
+// import { Label } from 'src/label/label.entity';
+import type { Label } from '../label/label.entity';
+import type { Artist } from '../artists/entities/artist.entity';
+// Remove direct imports and use type imports for circular dependencies
 export enum UserRole {
   ADMIN = 'admin',
   ARTIST = 'artist',
@@ -242,10 +244,18 @@ export class User {
 
   // @OneToMany('label', 'user', { lazy: true })
   // labels: Label[];
-  @OneToMany(() => Label, (label) => label.user)
+  // @OneToMany(() => Label, (label) => label.user)
+  // labels: Label[];
+
+  // @OneToMany(() => Artist, (artist) => artist.user, {
+  //   eager: false,
+  //   cascade: true,
+  // })
+  // artistProfiles: Artist[];
+  @OneToMany('Label', 'user')
   labels: Label[];
 
-  @OneToMany(() => Artist, (artist) => artist.user, {
+  @OneToMany('Artist', 'user', {
     eager: false,
     cascade: true,
   })

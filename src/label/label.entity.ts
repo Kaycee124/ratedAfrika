@@ -9,8 +9,10 @@ import {
   UpdateDateColumn,
   DeleteDateColumn,
 } from 'typeorm';
-import { User } from 'src/users/user.entity';
-import { Artist } from 'src/artists/entities/artist.entity';
+// import { User } from 'src/users/user.entity';
+// import { Artist } from 'src/artists/entities/artist.entity';
+import type { User } from '../users/user.entity';
+import type { Artist } from '../artists/entities/artist.entity'; // Use type import for circular dependency
 
 @Entity('labels')
 export class Label {
@@ -69,10 +71,17 @@ export class Label {
   @DeleteDateColumn()
   deletedAt?: Date;
 
-  // Relationships
-  @ManyToOne(() => User, (user) => user.labels)
+  // // Relationships
+  // @ManyToOne(() => User, (user) => user.labels)
+  // user: User;
+
+  // @OneToMany(() => Artist, (artist) => artist.label)
+  // artistRoster: Artist[];
+
+  // Relationships using string literals for circular dependencies
+  @ManyToOne('User', 'labels')
   user: User;
 
-  @OneToMany(() => Artist, (artist) => artist.label)
+  @OneToMany('Artist', 'label')
   artistRoster: Artist[];
 }

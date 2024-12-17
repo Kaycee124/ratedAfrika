@@ -109,8 +109,11 @@ import {
   UpdateDateColumn,
   DeleteDateColumn,
 } from 'typeorm';
-import { Artist } from '../../artists/entities/artist.entity';
-import { Lyrics } from '../../lyrics/entities/lyrics.entity';
+// import { Artist } from '../../artists/entities/artist.entity';
+// import { Lyrics } from '../../lyrics/entities/lyrics.entity';
+// Remove direct import of Lyrics
+import type { Lyrics } from '../../lyrics/entities/lyrics.entity'; // Use type import
+import type { Artist } from '../../artists/entities/artist.entity'; // Use type import
 
 export enum SongType {
   CLEAN = 'clean',
@@ -227,10 +230,15 @@ export class Song {
   @DeleteDateColumn()
   deletedAt: Date;
 
-  // Relationships
-  @ManyToOne(() => Artist, (artist) => artist.songs)
-  artist: Artist;
+  // // Relationships
+  // @ManyToOne(() => Artist, (artist) => artist.songs)
+  // artist: Artist;
 
-  @OneToMany(() => Lyrics, (lyrics) => lyrics.song)
+  // @OneToMany(() => Lyrics, (lyrics) => lyrics.song)
+  // lyrics: Lyrics[];
+  @OneToMany('Lyrics', 'song') // Use string literal for Lyrics
   lyrics: Lyrics[];
+
+  @ManyToOne('Artist', 'songs') // Use string literal for Artist
+  artist: Artist;
 }

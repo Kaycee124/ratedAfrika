@@ -9,7 +9,9 @@ import {
   //   OneToMany,
   VersionColumn,
 } from 'typeorm';
-import { Song } from '../../songs/entities/song.entity';
+// import { Song } from '../../songs/entities/song.entity';
+// Remove direct import of Song
+import type { Song } from '../../songs/entities/song.entity'; // Use type import
 
 @Entity('lyrics')
 export class Lyrics {
@@ -28,7 +30,9 @@ export class Lyrics {
   @Column()
   songId: string;
 
-  @ManyToOne(() => Song)
+  // @ManyToOne(() => Song)
+  // song: Song;
+  @ManyToOne('Song', 'lyrics') // Use string literal for Song
   song: Song;
 
   @VersionColumn()
