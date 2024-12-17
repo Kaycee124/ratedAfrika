@@ -18,6 +18,7 @@ import * as entities from '../database/entities';
         password: configService.get('DATABASE_PASS'),
         database: configService.get('DATABASE_NAME'),
         entities: Object.values(entities),
+        ssl: false,
         synchronize: false,
         logging: configService.get('NODE_ENV') !== 'production',
         pool: {
