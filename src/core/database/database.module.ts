@@ -1,4 +1,5 @@
 // src/infrastructure/database/database.module.ts
+// why is this failing lawd
 import { Module, Global } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -18,6 +19,9 @@ import * as entities from '../database/entities';
         password: configService.get('DATABASE_PASS'),
         database: configService.get('DATABASE_NAME'),
         entities: Object.values(entities),
+        ssl: {
+          rejectUnauthorized: false,
+        },
         synchronize: false,
         // ssl: {
         //   rejectUnauthorized: false,
