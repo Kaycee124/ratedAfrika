@@ -19,6 +19,9 @@ import * as entities from '../database/entities';
         database: configService.get('DATABASE_NAME'),
         entities: Object.values(entities),
         synchronize: false,
+        // ssl: {
+        //   rejectUnauthorized: false,
+        // },
         logging: configService.get('NODE_ENV') !== 'production',
         pool: {
           min: 2,

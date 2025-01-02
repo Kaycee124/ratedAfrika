@@ -269,7 +269,7 @@ export class AuthController {
         await this.authService.generateJwt(user);
 
       // Build redirect URL with tokens
-      const frontendUrl = new URL(process.env.FRONTEND_URL + '/home');
+      const frontendUrl = new URL(process.env.FRONTEND_URL + '/overview');
       const tokenPayload = Buffer.from(
         JSON.stringify({ accessToken, refreshToken }),
       ).toString('base64');

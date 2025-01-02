@@ -211,7 +211,13 @@ export class User {
   profile: string;
 
   @Column({ type: 'text', nullable: true })
-  image: string;
+  profileImage: string;
+
+  @Column({ nullable: true })
+  phoneNumber?: string;
+
+  @Column({ nullable: true })
+  country?: string;
 
   @CreateDateColumn({ type: 'timestamp' })
   created_at: Date;

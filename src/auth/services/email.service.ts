@@ -93,4 +93,42 @@ export class EmailService {
       throw new InternalServerErrorException('Failed to send otp.');
     }
   }
+  // send updateotp email method
+  async sendUpdateOtpEmail(
+    email: string,
+    name: string,
+    otp: string,
+    updateType: string,
+  ): Promise<void> {
+    const Otp = otp;
+    const formattedUpdateType =
+      updateType.charAt(0).toUpperCase() + updateType.slice(1).toLowerCase();
+
+    try {
+      await this.mailerService.sendMail({
+        to: email,
+        subject: `Verify Your ${formattedUpdateType} Update - RatedaFRiKa`,
+        template: 'update-otp',
+        context: {
+          name,
+          Otp,
+          updateType: formattedUpdateType,
+          expiryTime: '10 minutes',
+          supportEmail: 'support@ratedafrika.com',
+        },
+      });
+
+      this.logger.log(
+        `Update OTP email sent successfully to ${email} for ${updateType} update`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to send update verification OTP to ${email} for ${updateType} update`,
+        error.stack,
+      );
+      throw new InternalServerErrorException(
+        `Failed to send verification code for ${updateType} update. Please try again later.`,
+      );
+    }
+  }
 }

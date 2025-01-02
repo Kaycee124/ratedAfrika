@@ -9,3 +9,8 @@ export { Song } from '../../songs/entities/song.entity';
 export { Collaborator } from '../../collaborators/entities/collaborator.entity';
 export { CollaboratorSplit } from '../../collaborators/entities/collaborator-split.entity';
 export { Lyrics } from '../../lyrics/entities/lyrics.entity';
+export { FileBase } from '../../storage/entities/file-base.entity';
+export { AudioFile } from '../../storage/entities/audio-file.entity';
+export { ImageFile } from '../../storage/entities/image-file.entity';
+export { VideoFile } from '../../storage/entities/video-file.entity';
+export { FileChunk } from '../../storage/entities/file-chunk.entity';

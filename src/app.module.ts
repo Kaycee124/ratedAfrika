@@ -143,6 +143,7 @@ import {
   mailerConfig,
 } from 'src/config/app.config';
 import { googleOAuthConfig } from './config/google-oauth.config';
+import { StorageModule } from './storage/storage.module';
 import spotifyOauth from './config/spotify-oauth';
 
 @Module({
@@ -181,6 +182,7 @@ import spotifyOauth from './config/spotify-oauth';
     LabelsModule,
     CollaboratorsModule,
     LyricsModule,
+    StorageModule,
   ],
   controllers: [AppController],
   providers: [AppService],

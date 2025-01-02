@@ -9,6 +9,11 @@ import { Collaborator } from 'src/collaborators/entities/collaborator.entity';
 import { CollaboratorSplit } from 'src/collaborators/entities/collaborator-split.entity';
 import { Lyrics } from 'src/lyrics/entities/lyrics.entity';
 import { Song } from 'src/songs/entities/song.entity';
+import { FileBase } from 'src/storage/entities/file-base.entity';
+import { AudioFile } from 'src/storage/entities/audio-file.entity';
+import { ImageFile } from 'src/storage/entities/image-file.entity';
+import { VideoFile } from 'src/storage/entities/video-file.entity';
+import { FileChunk } from 'src/storage/entities/file-chunk.entity';
 import * as dotenv from 'dotenv';
 
 // Load environment variables
@@ -33,6 +38,11 @@ export const datasource = new DataSource({
     Song,
     Collaborator,
     CollaboratorSplit,
+    FileBase,
+    FileChunk,
+    AudioFile,
+    ImageFile,
+    VideoFile,
   ],
   migrations: ['src/migration/*.ts'],
   synchronize: false,
