@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: your-app-name
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm run start:prod
+    envVars:
+      - key: NODE_VERSION
+        value: 18.x  # or your Node version
+      - key: PORT
+        value: 3000
+    healthCheckPath: /health
+    autoDeploy: true
