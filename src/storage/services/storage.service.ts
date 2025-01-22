@@ -5,6 +5,7 @@ import {
   Logger,
   Inject,
   BadRequestException,
+  HttpStatus,
 } from '@nestjs/common';
 import { StorageProvider } from '../interfaces/storage-provider.interface';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -39,6 +40,7 @@ import path, { join } from 'path';
 import { LocalStorageProvider } from '../providers/local-storage.provider';
 import { S3StorageProvider } from '../providers/s3-storage.provider';
 import { FileValidationService } from './file-validation.service';
+import { ApiResponse } from 'src/auth/auth.service';
 
 @Injectable()
 export class StorageService {
@@ -726,23 +728,54 @@ export class StorageService {
     expiresIn: number = 3600,
   ): Promise<string> {
     try {
-      const file = await this.fileRepository.findOne({
+      // Try to find the file in all possible tables
+      let file: FileBase | null = null;
+
+      // Check each repository in sequence
+      file = await this.audioFileRepository.findOne({
         where: { id: fileId },
+        relations: ['uploadedBy'],
       });
 
       if (!file) {
+        file = await this.imageFileRepository.findOne({
+          where: { id: fileId },
+          relations: ['uploadedBy'],
+        });
+      }
+
+      if (!file) {
+        file = await this.videoFileRepository.findOne({
+          where: { id: fileId },
+          relations: ['uploadedBy'],
+        });
+      }
+
+      if (!file) {
+        this.logger.error(`File not found with ID: ${fileId}`);
         throw new Error('File not found');
       }
 
-      // Check if file is public or owned by the requesting user
+      // Check access permissions
       if (!file.isPublic && (!user || file.uploadedBy?.id !== user.id)) {
+        this.logger.warn(
+          `Access denied for user ${user?.id} to file ${fileId}`,
+        );
         throw new Error('Access denied');
       }
 
-      // Update last accessed timestamp
+      // Update access metrics
       file.lastAccessedAt = new Date();
       file.downloadCount += 1;
-      await this.fileRepository.save(file);
+
+      // Save to the appropriate repository
+      if (file instanceof AudioFile) {
+        await this.audioFileRepository.save(file);
+      } else if (file instanceof ImageFile) {
+        await this.imageFileRepository.save(file);
+      } else if (file instanceof VideoFile) {
+        await this.videoFileRepository.save(file);
+      }
 
       return this.provider.getSignedUrl(file.key, expiresIn);
     } catch (error) {
@@ -825,6 +858,66 @@ export class StorageService {
         error.stack,
       );
       throw error;
+    }
+  }
+
+  async getUploadById(
+    id: string,
+    type: 'audio' | 'image' | 'video',
+  ): Promise<ApiResponse<FileBase>> {
+    try {
+      this.logger.debug(`Fetching ${type} upload with ID: ${id}`);
+
+      let repository: Repository<FileBase>;
+
+      // Select appropriate repository based on type
+      switch (type) {
+        case 'audio':
+          repository = this.audioFileRepository;
+          break;
+        case 'image':
+          repository = this.imageFileRepository;
+          break;
+        case 'video':
+          repository = this.videoFileRepository;
+          break;
+        default:
+          throw new Error('Invalid file type specified');
+      }
+
+      // Find the file
+      const file = await repository.findOne({
+        where: { id },
+      });
+
+      if (!file) {
+        this.logger.warn(`${type} upload with ID ${id} not found`);
+        return {
+          statusCode: HttpStatus.NOT_FOUND,
+          message: `${type} upload not found`,
+          data: null,
+        };
+      }
+
+      // Update access timestamp
+      file.lastAccessedAt = new Date();
+      await repository.save(file);
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Upload details retrieved successfully',
+        data: file,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Failed to fetch ${type} upload ${id}: ${error.message}`,
+        error.stack,
+      );
+      return {
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: 'Failed to retrieve upload details',
+        data: null,
+      };
     }
   }
 

@@ -31,6 +31,11 @@ import {
 } from 'src/auth/guards/subcription.guard';
 import { Sub_Plans } from '../users/user.entity';
 import { Artist } from './entities/artist.entity';
+import {
+  SimplifiedCreateArtistDto,
+  SimplifiedCreateTempArtistDto,
+} from './dtos/create-artist.dto';
+import { TempArtist } from './entities/temp-artist.entity';
 
 interface ApiResponse<T = any> {
   statusCode: number;
@@ -191,5 +196,54 @@ export class ArtistsController {
     @Param('userId') userId: string,
   ): Promise<ApiResponse<Artist[]>> {
     return await this.artistsService.findByUser(userId);
+  }
+  // Add these endpoints to artist.controller.ts
+
+  @Post('create-simple')
+  @UseGuards(SubscriptionGuard)
+  @RequiredSubscriptions(Sub_Plans.ARTIST, Sub_Plans.LABEL)
+  @ApiOperation({ summary: 'Create a new artist profile with just name' })
+  @ApiBody({ type: SimplifiedCreateArtistDto })
+  @SwaggerApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'Artist profile created successfully',
+  })
+  @SwaggerApiResponse({
+    status: HttpStatus.CONFLICT,
+    description: 'Artist name is already taken',
+  })
+  async createSimplifiedArtist(
+    @Body() createDto: SimplifiedCreateArtistDto,
+    @Request() req,
+  ): Promise<ApiResponse<Artist>> {
+    console.log('Create Simple Artist - User:', {
+      id: req.user?.id,
+      subscription: req.user?.subscription,
+    });
+    return await this.artistsService.createSimplifiedArtist(
+      createDto,
+      req.user,
+    );
+  }
+
+  @Post('temp/create-simple')
+  @UseGuards(SubscriptionGuard)
+  @RequiredSubscriptions(Sub_Plans.ARTIST, Sub_Plans.LABEL)
+  @ApiOperation({
+    summary: 'Create a new temporary artist profile with just name',
+  })
+  @ApiBody({ type: SimplifiedCreateTempArtistDto })
+  @SwaggerApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'Temporary artist profile created successfully',
+  })
+  @SwaggerApiResponse({
+    status: HttpStatus.CONFLICT,
+    description: 'Temporary artist name is already taken',
+  })
+  async createSimplifiedTempArtist(
+    @Body() createDto: SimplifiedCreateTempArtistDto,
+  ): Promise<ApiResponse<TempArtist>> {
+    return await this.artistsService.createSimplifiedTempArtist(createDto);
   }
 }

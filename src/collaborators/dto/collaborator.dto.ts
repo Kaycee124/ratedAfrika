@@ -1,63 +1,75 @@
-// src/collaborators/dto/create-collaborator.dto.ts
 import {
   IsEmail,
   IsEnum,
   IsNotEmpty,
-  IsOptional,
   IsString,
+  IsBoolean,
   IsUUID,
-  ValidateNested,
   IsNumber,
   Min,
   Max,
 } from 'class-validator';
-import { Type } from 'class-transformer';
-import { CollaboratorType } from '../interfaces/collaborator-type.enum';
-import { PaymentInfoDto } from './paymentinfo.dto';
+import { PartialType } from '@nestjs/swagger';
+import { CollaboratorRole } from '../entities/collaborator.entity';
 
-export class CreateCollaboratorDto {
+// Base Collaborator DTO
+export class BaseCollaboratorDto {
   @IsString()
+  @IsNotEmpty()
   name: string;
 
   @IsEmail()
+  @IsNotEmpty()
   email: string;
 
-  @IsEnum(CollaboratorType)
-  type: CollaboratorType;
-
-  @IsOptional()
-  @IsString()
-  artistId?: string;
-
-  @IsString()
-  taxId: string;
-
-  @ValidateNested()
-  @Type(() => PaymentInfoDto)
-  paymentInfo: PaymentInfoDto;
+  @IsBoolean()
+  hasPublishedMusic: boolean;
 }
-// src/collaborators/dto/create-split.dto.ts
-import { SplitType } from '../types/collaborator-types';
 
-export class CreateSplitDto {
-  @IsUUID()
-  @IsNotEmpty()
-  collaboratorId: string;
+// Create Collaborator DTO
+export class CreateCollaboratorDto extends BaseCollaboratorDto {}
 
+// Update Collaborator DTO
+export class UpdateCollaboratorDto extends PartialType(BaseCollaboratorDto) {}
+
+// Song Collaborator DTOs
+export class BaseSongCollaboratorDto {
   @IsUUID()
   @IsNotEmpty()
   songId: string;
 
+  @IsUUID()
+  @IsNotEmpty()
+  collaboratorId: string;
+
+  @IsEnum(CollaboratorRole)
+  @IsNotEmpty()
+  role: CollaboratorRole;
+
   @IsNumber()
   @Min(0)
   @Max(100)
-  percentage: number;
-
-  @IsEnum(SplitType)
-  @IsNotEmpty()
-  splitType: SplitType;
+  splitPercentage: number;
 }
-// src/collaborators/dto/update-collaborator.dto.ts
-import { PartialType } from '@nestjs/mapped-types';
 
-export class UpdateCollaboratorDto extends PartialType(CreateCollaboratorDto) {}
+// Create Song Collaborator DTO
+export class CreateSongCollaboratorDto extends BaseSongCollaboratorDto {}
+
+// Update Song Collaborator DTO
+export class UpdateSongCollaboratorDto extends PartialType(
+  BaseSongCollaboratorDto,
+) {}
+
+// Response DTOs for Swagger Documentation
+export class CollaboratorResponseDto extends BaseCollaboratorDto {
+  id: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export class SongCollaboratorResponseDto extends BaseSongCollaboratorDto {
+  id: string;
+  collaborator: CollaboratorResponseDto;
+  createdAt: Date;
+  updatedAt: Date;
+}

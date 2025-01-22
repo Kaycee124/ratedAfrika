@@ -7,6 +7,11 @@ import { UpdateArtistDto } from './dtos/update-artist.dto';
 import { QueryArtistDto } from './dtos/query-artist.dto';
 import { User } from '../users/user.entity';
 import { Label } from '../label/label.entity';
+import {
+  SimplifiedCreateArtistDto,
+  SimplifiedCreateTempArtistDto,
+} from './dtos/create-artist.dto';
+import { TempArtist } from './entities/temp-artist.entity';
 
 // Define consistent response interface
 interface ApiResponse<T = any> {
@@ -26,6 +31,8 @@ export class ArtistsService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(Label)
     private readonly labelRepository: Repository<Label>,
+    @InjectRepository(TempArtist)
+    private readonly tempArtistRepository: Repository<TempArtist>,
   ) {}
 
   async create(
@@ -299,6 +306,100 @@ export class ArtistsService {
       return {
         statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
         message: 'An error occurred while fetching user artists',
+      };
+    }
+  }
+
+  // Add these methods to artist.service.ts
+
+  async createSimplifiedArtist(
+    createDto: SimplifiedCreateArtistDto,
+    user: User,
+  ): Promise<ApiResponse<Artist>> {
+    try {
+      // First check if an artist with this name already exists
+      const existingArtist = await this.artistRepository.findOne({
+        where: { name: createDto.name },
+      });
+
+      if (existingArtist) {
+        return {
+          statusCode: HttpStatus.CONFLICT,
+          message: 'Artist name is already taken',
+        };
+      }
+
+      // Create new artist with just the required name field
+      // Initialize other required fields with empty values
+      const artist = this.artistRepository.create({
+        name: createDto.name,
+        user,
+        // Initialize required fields with default values
+        email: '', // Can be updated later
+        country: '', // Can be updated later
+        phoneNumber: '', // Can be updated later
+        genres: [], // Initialize as empty array
+        musicPlatforms: {}, // Initialize as empty object
+        socialMediaLinks: {}, // Initialize as empty object
+      });
+
+      const savedArtist = await this.artistRepository.save(artist);
+
+      return {
+        statusCode: HttpStatus.CREATED,
+        message: 'Artist profile created successfully',
+        data: savedArtist,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Failed to create simplified artist: ${error.message}`,
+        error.stack,
+      );
+      return {
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: 'An error occurred while creating the artist profile',
+      };
+    }
+  }
+
+  async createSimplifiedTempArtist(
+    createDto: SimplifiedCreateTempArtistDto,
+  ): Promise<ApiResponse<TempArtist>> {
+    try {
+      // Check if temp artist with same name exists
+      const existingTempArtist = await this.tempArtistRepository.findOne({
+        where: { name: createDto.name },
+      });
+
+      if (existingTempArtist) {
+        return {
+          statusCode: HttpStatus.CONFLICT,
+          message: 'Temp artist name is already taken',
+        };
+      }
+
+      // Create new temp artist with just the name
+      const tempArtist = this.tempArtistRepository.create({
+        name: createDto.name,
+        // Other fields will use their default values from the entity
+      });
+
+      const savedTempArtist = await this.tempArtistRepository.save(tempArtist);
+
+      return {
+        statusCode: HttpStatus.CREATED,
+        message: 'Temporary artist profile created successfully',
+        data: savedTempArtist,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Failed to create simplified temp artist: ${error.message}`,
+        error.stack,
+      );
+      return {
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        message:
+          'An error occurred while creating the temporary artist profile',
       };
     }
   }

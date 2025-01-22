@@ -119,13 +119,25 @@ import {
   Request,
   BadRequestException,
   InternalServerErrorException,
+  Query,
+  HttpStatus,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from 'src/auth/guards/jwt/jwt.guard';
 import { StorageService } from './services/storage.service';
-import { ApiTags, ApiConsumes, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiConsumes,
+  ApiBody,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { UploadFileDto, InitiateMultipartUploadDto } from './dto/upload.dto';
 import { memoryStorage } from 'multer';
+import { ApiResponse } from 'src/auth/auth.service';
+import { FileBase } from './entities/file-base.entity';
 
 @ApiTags('storage')
 @Controller('storage')
@@ -264,5 +276,42 @@ export class StorageController {
         `Failed to get signed URL: ${error.message}`,
       );
     }
+  }
+  @Get(':id')
+  @ApiOperation({ summary: 'Get upload details by ID' })
+  @ApiParam({ name: 'id', description: 'Upload ID' })
+  @ApiQuery({
+    name: 'type',
+    enum: ['audio', 'image', 'video'],
+    required: true,
+    description: 'Type of upload to retrieve',
+  })
+  async getUpload(
+    @Param('id') id: string,
+    @Query('type') type?: string,
+  ): Promise<ApiResponse<FileBase>> {
+    // Check if type parameter is missing
+    if (!type) {
+      return {
+        statusCode: HttpStatus.BAD_REQUEST,
+        message: 'File type parameter is required',
+        data: null,
+      };
+    }
+
+    // Validate file type
+    const validTypes = ['audio', 'image', 'video'];
+    if (!validTypes.includes(type)) {
+      return {
+        statusCode: HttpStatus.BAD_REQUEST,
+        message: `Invalid file type. Must be one of: ${validTypes.join(', ')}`,
+        data: null,
+      };
+    }
+
+    return this.storageService.getUploadById(
+      id,
+      type as 'audio' | 'image' | 'video',
+    );
   }
 }

@@ -1,4 +1,3 @@
-// src/collaborators/controllers/collaborators.controller.ts
 import {
   Controller,
   Get,
@@ -17,18 +16,21 @@ import {
   ApiBearerAuth,
   ApiParam,
 } from '@nestjs/swagger';
-import { CollaboratorsService } from './collaborators.service';
-import { CreateCollaboratorDto } from './dto/collaborator.dto';
-import { UpdateCollaboratorDto } from './dto/collaborator.dto';
-import { CreateSplitDto } from './dto/collaborator.dto';
-import { JwtAuthGuard } from 'src/auth/guards/jwt/jwt.guard';
 import {
-  SubscriptionGuard,
-  RequiredSubscriptions,
-} from 'src/auth/guards/subcription.guard';
-import { Sub_Plans } from 'src/users/user.entity';
-import { Collaborator } from './entities/collaborator.entity';
-import { CollaboratorSplit } from './entities/collaborator-split.entity';
+  CollaboratorService,
+  SongCollaboratorService,
+} from './collaborators.service';
+import {
+  CreateCollaboratorDto,
+  // UpdateCollaboratorDto,
+  CreateSongCollaboratorDto,
+  UpdateSongCollaboratorDto,
+  CollaboratorResponseDto,
+  SongCollaboratorResponseDto,
+} from './dto/collaborator.dto';
+import { JwtAuthGuard } from 'src/auth/guards/jwt/jwt.guard';
+import { SongOwnerGuard } from 'src/auth/guards/owner.guard';
+import { CollaboratorRole } from './entities/collaborator.entity';
 
 interface ApiResponse<T = any> {
   statusCode: number;
@@ -40,134 +42,138 @@ interface ApiResponse<T = any> {
 @Controller('collaborators')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
-export class CollaboratorsController {
-  constructor(private readonly collaboratorsService: CollaboratorsService) {}
+export class CollaboratorController {
+  constructor(
+    private readonly collaboratorService: CollaboratorService,
+    private readonly songCollaboratorService: SongCollaboratorService,
+  ) {}
 
+  // Base Collaborator Endpoints
   @Post()
-  @UseGuards(SubscriptionGuard)
-  @RequiredSubscriptions(Sub_Plans.ARTIST, Sub_Plans.LABEL)
   @ApiOperation({ summary: 'Create a new collaborator' })
   @SwaggerApiResponse({
     status: HttpStatus.CREATED,
     description: 'Collaborator created successfully',
-  })
-  @SwaggerApiResponse({
-    status: HttpStatus.CONFLICT,
-    description: 'Email already exists',
-  })
-  @SwaggerApiResponse({
-    status: HttpStatus.FORBIDDEN,
-    description: 'Insufficient subscription plan',
+    type: CollaboratorResponseDto,
   })
   async create(
     @Body() createCollaboratorDto: CreateCollaboratorDto,
-  ): Promise<ApiResponse<Collaborator>> {
-    return await this.collaboratorsService.create(createCollaboratorDto);
+  ): Promise<ApiResponse<CollaboratorResponseDto>> {
+    return this.collaboratorService.create(createCollaboratorDto);
   }
 
   @Get()
-  @UseGuards(SubscriptionGuard)
-  @RequiredSubscriptions(Sub_Plans.ARTIST, Sub_Plans.LABEL)
   @ApiOperation({ summary: 'Get all collaborators' })
   @SwaggerApiResponse({
     status: HttpStatus.OK,
-    description: 'Collaborators retrieved successfully',
+    description: 'Returns all collaborators',
+    type: [CollaboratorResponseDto],
   })
-  async findAll(): Promise<ApiResponse<Collaborator[]>> {
-    return await this.collaboratorsService.findAll();
+  async findAll(): Promise<ApiResponse<CollaboratorResponseDto[]>> {
+    return this.collaboratorService.findAll();
   }
 
   @Get(':id')
-  @UseGuards(SubscriptionGuard)
-  @RequiredSubscriptions(Sub_Plans.ARTIST, Sub_Plans.LABEL)
   @ApiOperation({ summary: 'Get a collaborator by ID' })
-  @ApiParam({ name: 'id', type: String, description: 'Collaborator ID' })
+  @ApiParam({ name: 'id', type: String })
   @SwaggerApiResponse({
     status: HttpStatus.OK,
-    description: 'Collaborator retrieved successfully',
+    description: 'Returns a collaborator',
+    type: CollaboratorResponseDto,
   })
-  @SwaggerApiResponse({
-    status: HttpStatus.NOT_FOUND,
-    description: 'Collaborator not found',
-  })
-  async findOne(@Param('id') id: string): Promise<ApiResponse<Collaborator>> {
-    return await this.collaboratorsService.findOne(id);
+  async findOne(
+    @Param('id') id: string,
+  ): Promise<ApiResponse<CollaboratorResponseDto>> {
+    return this.collaboratorService.findOne(id);
   }
 
-  @Post('splits')
-  @UseGuards(SubscriptionGuard)
-  @RequiredSubscriptions(Sub_Plans.ARTIST, Sub_Plans.LABEL)
-  @ApiOperation({ summary: 'Create a new split' })
+  // Song Collaborator Endpoints
+  @Post('song/:songId/contributions')
+  @UseGuards(SongOwnerGuard)
+  @ApiOperation({ summary: 'Add a contributor to a song' })
+  @ApiParam({ name: 'songId', type: String })
   @SwaggerApiResponse({
     status: HttpStatus.CREATED,
-    description: 'Split created successfully',
+    description: 'Contributor added successfully',
+    type: SongCollaboratorResponseDto,
   })
-  @SwaggerApiResponse({
-    status: HttpStatus.BAD_REQUEST,
-    description: 'Invalid split percentage',
-  })
-  async createSplit(
-    @Body() createSplitDto: CreateSplitDto,
-  ): Promise<ApiResponse<CollaboratorSplit>> {
-    return await this.collaboratorsService.createSplit(createSplitDto);
-  }
-
-  @Get('splits/:songId')
-  @UseGuards(SubscriptionGuard)
-  @RequiredSubscriptions(Sub_Plans.ARTIST, Sub_Plans.LABEL)
-  @ApiOperation({ summary: 'Get splits for a song' })
-  @ApiParam({ name: 'songId', type: String, description: 'Song ID' })
-  @SwaggerApiResponse({
-    status: HttpStatus.OK,
-    description: 'Splits retrieved successfully',
-  })
-  async getSplits(
+  async addContributor(
     @Param('songId') songId: string,
-  ): Promise<ApiResponse<CollaboratorSplit[]>> {
-    return await this.collaboratorsService.getSplits(songId);
+    @Body() createDto: CreateSongCollaboratorDto,
+  ): Promise<ApiResponse<SongCollaboratorResponseDto>> {
+    // Ensure songId from path matches DTO
+    createDto.songId = songId;
+    return this.songCollaboratorService.createContribution(createDto);
   }
 
-  @Patch(':id')
-  @UseGuards(SubscriptionGuard)
-  @RequiredSubscriptions(Sub_Plans.LABEL)
-  @ApiOperation({ summary: 'Update a collaborator' })
-  @ApiParam({ name: 'id', type: String, description: 'Collaborator ID' })
+  @Get('song/:songId/contributions')
+  @UseGuards(SongOwnerGuard)
+  @ApiOperation({ summary: 'Get all contributors for a song' })
+  @ApiParam({ name: 'songId', type: String })
   @SwaggerApiResponse({
     status: HttpStatus.OK,
-    description: 'Collaborator updated successfully',
+    description: 'Returns all song contributors',
+    type: [SongCollaboratorResponseDto],
   })
-  async update(
-    @Param('id') id: string,
-    @Body() updateCollaboratorDto: UpdateCollaboratorDto,
-  ): Promise<ApiResponse<Collaborator>> {
-    return await this.collaboratorsService.update(id, updateCollaboratorDto);
+  async getSongContributors(
+    @Param('songId') songId: string,
+  ): Promise<ApiResponse<SongCollaboratorResponseDto[]>> {
+    return this.songCollaboratorService.findBySong(songId);
   }
 
-  @Post(':id/verify')
-  @UseGuards(SubscriptionGuard)
-  @RequiredSubscriptions(Sub_Plans.LABEL)
-  @ApiOperation({ summary: 'Verify a collaborator' })
-  @ApiParam({ name: 'id', type: String, description: 'Collaborator ID' })
+  @Patch('song/:songId/contributions/:contributorId')
+  @UseGuards(SongOwnerGuard)
+  @ApiOperation({ summary: 'Update a contribution' })
+  @ApiParam({ name: 'songId', type: String, description: 'ID of the song' })
+  @ApiParam({
+    name: 'contributorId',
+    type: String,
+    description: 'ID of the contribution to update',
+  })
   @SwaggerApiResponse({
     status: HttpStatus.OK,
-    description: 'Collaborator verified successfully',
+    description: 'Contribution updated successfully',
+    type: SongCollaboratorResponseDto,
   })
-  async verifyCollaborator(
-    @Param('id') id: string,
-  ): Promise<ApiResponse<Collaborator>> {
-    return await this.collaboratorsService.verifyCollaborator(id);
+  async updateContribution(
+    @Param('songId') songId: string,
+    @Param('contributorId') contributorId: string,
+    @Body() updateDto: UpdateSongCollaboratorDto,
+  ): Promise<ApiResponse<SongCollaboratorResponseDto>> {
+    // SongOwnerGuard will validate songId ownership
+    // Find the specific contribution using both IDs
+    return this.songCollaboratorService.updateContribution(
+      contributorId,
+      updateDto,
+    );
   }
 
-  @Delete('splits/:id')
-  @UseGuards(SubscriptionGuard)
-  @RequiredSubscriptions(Sub_Plans.LABEL)
-  @ApiOperation({ summary: 'Delete a split' })
-  @ApiParam({ name: 'id', type: String, description: 'Split ID' })
+  @Delete('contributions/:id')
+  @UseGuards(SongOwnerGuard)
+  @ApiOperation({ summary: 'Delete a contribution' })
+  @ApiParam({ name: 'id', type: String })
   @SwaggerApiResponse({
     status: HttpStatus.OK,
-    description: 'Split deleted successfully',
+    description: 'Contribution deleted successfully',
   })
-  async removeSplit(@Param('id') id: string): Promise<ApiResponse> {
-    return await this.collaboratorsService.removeSplit(id);
+  async deleteContribution(@Param('id') id: string): Promise<ApiResponse> {
+    return this.songCollaboratorService.deleteContribution(id);
+  }
+
+  @Get('song/:songId/contributions/role/:role')
+  @UseGuards(SongOwnerGuard)
+  @ApiOperation({ summary: 'Get song contributors by role' })
+  @ApiParam({ name: 'songId', type: String })
+  @ApiParam({ name: 'role', enum: CollaboratorRole })
+  @SwaggerApiResponse({
+    status: HttpStatus.OK,
+    description: 'Returns contributors for specific role',
+    type: [SongCollaboratorResponseDto],
+  })
+  async getSongContributorsByRole(
+    @Param('songId') songId: string,
+    @Param('role') role: CollaboratorRole,
+  ): Promise<ApiResponse<SongCollaboratorResponseDto[]>> {
+    return this.songCollaboratorService.findBySongAndRole(songId, role);
   }
 }

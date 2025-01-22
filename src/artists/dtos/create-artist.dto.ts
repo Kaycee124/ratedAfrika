@@ -90,3 +90,18 @@ export class CreateArtistDto {
   @Type(() => SocialMediaLinksDto)
   socialMediaLinks: SocialMediaLinksDto;
 }
+
+// added dto for single entry creation
+// simplified-create-artist.dto.ts
+
+export class SimplifiedCreateArtistDto {
+  @IsString()
+  name: string;
+}
+
+// simplified-create-temp-artist.dto.ts
+
+export class SimplifiedCreateTempArtistDto {
+  @IsString()
+  name: string;
+}
