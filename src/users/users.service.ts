@@ -358,25 +358,44 @@ export class UsersService {
   //   return user;
   // }
   async getUserProfile(userId: string): Promise<User | { message: string }> {
-    const user = await this.UserRepository.findOne({
-      where: { id: userId },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        subscription: true,
-        isEmailVerified: true,
-        isActive: true,
-      },
-    });
+    try {
+      const user = await this.UserRepository.findOne({
+        where: { id: userId },
+        relations: ['artistProfiles'], // Add this to load artist relationships
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          subscription: true,
+          isEmailVerified: true,
+          isActive: true,
+          artistProfiles: true, // Add this to include artists in selection
+        },
+      });
 
-    if (!user) {
-      this.logger.error('User not found', `User ID: ${userId}`);
-      return { message: 'User not found' };
+      if (!user) {
+        this.logger.error('User not found', `User ID: ${userId}`);
+        return { message: 'User not found' };
+      }
+
+      // changing response to include artists created under a user
+      const response = {
+        ...user,
+        artists:
+          user.artistProfiles && user.artistProfiles.length > 0
+            ? user.artistProfiles
+            : 'No artists found',
+      };
+
+      return response;
+    } catch (error) {
+      this.logger.error(
+        `Error fetching user profile: ${error.message}`,
+        error.stack,
+      );
+      return { message: 'Error fetching user profile' };
     }
-
-    return user;
   }
 
   // Update user profile
