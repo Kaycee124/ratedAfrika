@@ -5,10 +5,7 @@ import { EmailVerificationToken } from 'src/users/Entities/email-verification.en
 import { Otp } from 'src/users/Entities/otp.entity';
 import { Label } from 'src/label/label.entity';
 import { Artist } from 'src/artists/entities/artist.entity';
-import {
-  Collaborator,
-  SongCollaborator,
-} from 'src/collaborators/entities/collaborator.entity';
+import { Collaborator } from 'src/collaborators/entities/collaborator.entity';
 import { Lyrics } from 'src/lyrics/entities/lyrics.entity';
 import { Song } from 'src/songs/entities/song.entity';
 import { FileBase } from 'src/storage/entities/file-base.entity';
@@ -18,6 +15,9 @@ import { VideoFile } from 'src/storage/entities/video-file.entity';
 import { FileChunk } from 'src/storage/entities/file-chunk.entity';
 import { TempArtist } from 'src/artists/entities/temp-artist.entity';
 import { ReleaseContainer } from 'src/songs/entities/album.entity';
+import { SplitSheet } from 'src/collaborators/entities/splitsheet.entity';
+import { SplitSheetEntry } from 'src/collaborators/entities/splitsheetEntry.entity';
+import { PayoutMethod } from 'src/collaborators/entities/payment.entity';
 import * as dotenv from 'dotenv';
 
 // Load environment variables
@@ -46,9 +46,11 @@ export const datasource = new DataSource({
     AudioFile,
     ImageFile,
     VideoFile,
-    SongCollaborator,
     TempArtist,
     ReleaseContainer,
+    SplitSheet,
+    SplitSheetEntry,
+    PayoutMethod,
   ],
   migrations: ['src/migration/*.ts'],
   synchronize: false,

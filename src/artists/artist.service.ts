@@ -374,7 +374,7 @@ export class ArtistsService {
       if (existingTempArtist) {
         return {
           statusCode: HttpStatus.CONFLICT,
-          message: 'Temp artist name is already taken',
+          message: 'artist name is already taken',
         };
       }
 

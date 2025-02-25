@@ -13,9 +13,11 @@ import {
   ManyToMany,
   JoinColumn,
   OneToMany,
+  // OneToMany,
 } from 'typeorm';
 import { Artist } from '../../artists/entities/artist.entity';
-import type { SongCollaborator } from '../../collaborators/entities/collaborator.entity';
+// import type { SongCollaborator } from '../../collaborators/entities/collaborator.entity';
+import type { SplitSheet } from 'src/collaborators/entities/splitsheet.entity';
 import { ReleaseContainer } from './album.entity';
 import type { User } from 'src/users/user.entity';
 import { TempArtist } from 'src/artists/entities/temp-artist.entity';
@@ -164,8 +166,13 @@ export class Song {
   })
   featuredTempArtists: TempArtist[];
 
-  @OneToMany('SongCollaborator', 'song')
-  songCollaborators: SongCollaborator[];
+  //TODO: remove if ater found to be unimportanat
+
+  // @OneToMany('SongCollaborator', 'song')
+  // songCollaborators: SongCollaborator[];
+
+  @OneToMany('SplitSheet', 'song')
+  splits: SplitSheet;
 
   // Add these new fields to your existing Song entity
   @Column({ nullable: true })

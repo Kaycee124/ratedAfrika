@@ -832,20 +832,22 @@ export class SongsService {
         };
       }
 
-      // If song exists, load collaborators separately
-      const songWithCollaborators = await this.songRepository.findOne({
-        where: { id: song.id },
-        relations: {
-          songCollaborators: {
-            collaborator: true,
-          },
-        },
-      });
+      //TODO: Fix this collaborator part soon
 
-      // Merge the collaborators into the original song object
-      if (songWithCollaborators?.songCollaborators) {
-        song.songCollaborators = songWithCollaborators.songCollaborators;
-      }
+      // If song exists, load collaborators separately
+      // const songWithCollaborators = await this.songRepository.findOne({
+      //   where: { id: song.id },
+      //   relations: {
+      //     songCollaborators: {
+      //       collaborator: true,
+      //     },
+      //   },
+      // });
+
+      // // Merge the collaborators into the original song object
+      // if (songWithCollaborators?.songCollaborators) {
+      //   song.songCollaborators = songWithCollaborators.songCollaborators;
+      // }
 
       return {
         statusCode: HttpStatus.OK,
@@ -894,25 +896,26 @@ export class SongsService {
           message: 'Release container not found or unauthorized',
         };
       }
+      //TODO: Fix on returning the collaborators later
 
-      // If container exists, load collaborators separately
-      if (container.tracks?.length) {
-        const tracksWithCollaborators = await Promise.all(
-          container.tracks.map(async (track) => {
-            const trackWithCollabs = await this.songRepository.findOne({
-              where: { id: track.id },
-              relations: {
-                songCollaborators: {
-                  collaborator: true,
-                },
-              },
-            });
-            return trackWithCollabs;
-          }),
-        );
+      // // If container exists, load collaborators separately
+      // if (container.tracks?.length) {
+      //   const tracksWithCollaborators = await Promise.all(
+      //     container.tracks.map(async (track) => {
+      //       const trackWithCollabs = await this.songRepository.findOne({
+      //         where: { id: track.id },
+      //         relations: {
+      //           songCollaborators: {
+      //             collaborator: true,
+      //           },
+      //         },
+      //       });
+      //       return trackWithCollabs;
+      //     }),
+      //   );
 
-        container.tracks = tracksWithCollaborators;
-      }
+      //   container.tracks = tracksWithCollaborators;
+      // }
 
       return {
         statusCode: HttpStatus.OK,

@@ -126,10 +126,6 @@ export class UsersController {
     @Request() req,
     @Body() updateUserDto: UpdateUserDto,
   ) {
-    // Add logging to debug
-    console.log('User from request:', req.user);
-    console.log('Update DTO:', updateUserDto);
-
     // Ensure we have a user ID
     if (!req.user || !req.user.id) {
       return {

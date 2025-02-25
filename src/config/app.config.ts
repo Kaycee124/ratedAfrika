@@ -4,6 +4,7 @@ import { registerAs } from '@nestjs/config';
 export const appConfig = registerAs('app', () => ({
   nodeEnv: process.env.NODE_ENV || 'development',
   port: parseInt(process.env.PORT, 10) || 3000,
+  frontendDomain: process.env.FRONTEND_URL,
 }));
 
 export const authConfig = registerAs('auth', () => ({
@@ -36,4 +37,9 @@ export const mailerConfig = registerAs('mailer', () => ({
   user: process.env.EMAIL_USER,
   pass: process.env.EMAIL_PASS,
   from: process.env.MAILER_FROM,
+}));
+
+export const splitsConfig = registerAs('splits', () => ({
+  serviceChargePercentage:
+    parseFloat(process.env.SERVICE_CHARGE_PERCENTAGE) || 0.15, // Default to 15%
 }));

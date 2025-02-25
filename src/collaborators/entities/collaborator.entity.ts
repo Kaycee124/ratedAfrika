@@ -1,4 +1,4 @@
-import { Song } from 'src/songs/entities/song.entity';
+// import { Song } from 'src/songs/entities/song.entity';
 import {
   Entity,
   Column,
@@ -9,13 +9,12 @@ import {
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
-
+import type { User } from 'src/users/user.entity';
 // Enums
 export enum CollaboratorRole {
-  MIX_ENGINEER = 'm&m',
+  MIX_ENGINEER = 'engineer',
   PRODUCER = 'producer',
-  WRITER = 'writer',
-  FEATURED = 'featured',
+  SONG_WRITER = 'writer',
 }
 
 // Base collaborator information
@@ -30,54 +29,17 @@ export class Collaborator {
   @Column({ unique: true })
   email: string;
 
-  @Column({ default: false })
-  hasPublishedMusic: boolean;
-
-  @CreateDateColumn()
-  createdAt: Date;
-
-  @UpdateDateColumn()
-  updatedAt: Date;
-
-  @DeleteDateColumn()
-  deletedAt?: Date;
-}
-
-// Individual song contributions
-@Entity('song_collaborators')
-export class SongCollaborator {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
-  @Column('uuid')
-  songId: string;
-
-  @Column('uuid')
-  collaboratorId: string;
-
-  @Column({
-    type: 'enum',
-    enum: CollaboratorRole,
-  })
+  @Column({ nullable: true })
   role: CollaboratorRole;
 
-  @Column('decimal', {
-    precision: 5,
-    scale: 2,
-    transformer: {
-      to: (value: number) => value,
-      from: (value: string) => parseFloat(value),
-    },
-  })
-  splitPercentage: number;
+  @Column({ nullable: true }) // New: Spotify URL
+  spotifyUrl?: string;
 
-  @ManyToOne(() => Collaborator)
-  @JoinColumn({ name: 'collaboratorId' })
-  collaborator: Collaborator;
+  @Column({ nullable: true }) // New: Apple Music URL
+  appleUrl?: string;
 
-  @ManyToOne(() => Song, (song) => song.songCollaborators)
-  @JoinColumn({ name: 'songId' })
-  song: Song;
+  @Column({ nullable: true }) // New: YouTube URL
+  youtubeUrl?: string;
 
   @CreateDateColumn()
   createdAt: Date;
@@ -87,4 +49,11 @@ export class SongCollaborator {
 
   @DeleteDateColumn()
   deletedAt?: Date;
+
+  @ManyToOne('users', 'collaborators')
+  @JoinColumn({ name: 'createdByUserId' })
+  createdBy: User;
+
+  @Column({ nullable: true })
+  createdByUserId: string;
 }

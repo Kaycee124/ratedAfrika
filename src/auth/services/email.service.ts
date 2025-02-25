@@ -131,4 +131,30 @@ export class EmailService {
       );
     }
   }
+  //send notifications to user about split
+  async sendSplitNotification(
+    email: string,
+    claimLink: string,
+    recipientName: string,
+  ): Promise<void> {
+    try {
+      await this.mailerService.sendMail({
+        to: email,
+        subject: 'You were added to a split',
+        template: 'split-notification',
+        context: {
+          claimLink,
+          recipientName,
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to send split notification to ${email}`,
+        error.stack,
+      );
+      throw new InternalServerErrorException(
+        'Failed to send split notification email.',
+      );
+    }
+  }
 }

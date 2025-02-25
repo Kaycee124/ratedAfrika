@@ -16,7 +16,9 @@ import type { Label } from '../label/label.entity';
 import type { Artist } from '../artists/entities/artist.entity';
 import type { Song } from 'src/songs/entities/song.entity';
 import type { ReleaseContainer } from '../songs/entities/album.entity';
+import { Collaborator } from 'src/collaborators/entities/collaborator.entity';
 // Remove direct imports and use type imports for circular dependencies
+import { PayoutMethod } from 'src/collaborators/entities/payment.entity';
 export enum UserRole {
   ADMIN = 'admin',
   ARTIST = 'artist',
@@ -128,6 +130,13 @@ export class User {
   })
   artistProfiles: Artist[];
 
+  // Add to User entity
+  @OneToMany('payout_methods', 'user', {
+    eager: false,
+    cascade: true,
+  })
+  payoutMethods: PayoutMethod[];
+
   @Column({ type: 'int', default: 0 })
   tokenVersion: number;
 
@@ -136,6 +145,9 @@ export class User {
 
   @OneToMany('ReleaseContainer', 'uploadedBy') // Use string literal for relationship
   releaseContainers: ReleaseContainer[];
+
+  @OneToMany('collaborators', 'createdBy') // String literal!
+  collaborators: Collaborator[];
 }
 
 // {

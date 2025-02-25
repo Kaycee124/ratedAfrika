@@ -382,10 +382,10 @@ export class UsersService {
       // changing response to include artists created under a user
       const response = {
         ...user,
-        artists:
-          user.artistProfiles && user.artistProfiles.length > 0
-            ? user.artistProfiles
-            : 'No artists found',
+        // artists:
+        //   user.artistProfiles && user.artistProfiles.length > 0
+        //     ? user.artistProfiles
+        //     : 'No artists found',
       };
 
       return response;

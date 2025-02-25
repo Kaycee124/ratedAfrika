@@ -1,12 +1,12 @@
 import { Injectable, Logger, HttpStatus } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Collaborator, SongCollaborator } from './entities/collaborator.entity';
+import { Collaborator } from './entities/collaborator.entity';
 import {
   CreateCollaboratorDto,
   UpdateCollaboratorDto,
-  CreateSongCollaboratorDto,
-  UpdateSongCollaboratorDto,
+  // CreateSongCollaboratorDto,
+  // UpdateSongCollaboratorDto,
 } from './dto/collaborator.dto';
 
 interface ApiResponse<T = unknown> {
@@ -14,7 +14,7 @@ interface ApiResponse<T = unknown> {
   message: string;
   data?: T | null;
 }
-import { CollaboratorRole } from './entities/collaborator.entity';
+// import { CollaboratorRole } from './entities/collaborator.entity';
 @Injectable()
 export class CollaboratorService {
   private readonly logger = new Logger(CollaboratorService.name);
@@ -26,6 +26,7 @@ export class CollaboratorService {
 
   async create(
     createCollaboratorDto: CreateCollaboratorDto,
+    user: any, // Accept the user object
   ): Promise<ApiResponse<Collaborator>> {
     try {
       const existingCollaborator = await this.collaboratorRepository.findOne({
@@ -36,13 +37,16 @@ export class CollaboratorService {
         return {
           statusCode: HttpStatus.CONFLICT,
           message: 'Collaborator with this email already exists',
-          data: existingCollaborator, // Return existing if found
+          data: existingCollaborator,
         };
       }
 
-      const collaborator = this.collaboratorRepository.create(
-        createCollaboratorDto,
-      );
+      // Create the collaborator, setting createdByUserId from user.id
+      const collaborator = this.collaboratorRepository.create({
+        ...createCollaboratorDto,
+        createdByUserId: user.id, // Use user.id
+      });
+
       const savedCollaborator =
         await this.collaboratorRepository.save(collaborator);
 
@@ -65,6 +69,30 @@ export class CollaboratorService {
     try {
       const collaborators = await this.collaboratorRepository.find({
         order: { createdAt: 'DESC' },
+        relations: ['createdBy'], // Fetch the related 'createdBy' user
+      });
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Collaborators retrieved successfully',
+        data: collaborators,
+      };
+    } catch (error) {
+      this.logger.error(`Failed to fetch collaborators: ${error.message}`);
+      return {
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: 'An error occurred while fetching collaborators',
+        data: [],
+      };
+    }
+  }
+
+  async findAllUser(userId: string): Promise<ApiResponse<Collaborator[]>> {
+    try {
+      const collaborators = await this.collaboratorRepository.find({
+        where: { createdByUserId: userId }, // Filter by userId
+        order: { createdAt: 'DESC' },
+        relations: ['createdBy'], // Fetch the related 'createdBy' user
       });
 
       return {
@@ -86,6 +114,7 @@ export class CollaboratorService {
     try {
       const collaborator = await this.collaboratorRepository.findOne({
         where: { id },
+        relations: ['createdBy'], // Fetch related user
       });
 
       if (!collaborator) {
@@ -115,6 +144,7 @@ export class CollaboratorService {
     try {
       const collaborator = await this.collaboratorRepository.findOne({
         where: { email },
+        relations: ['createdBy'], // Fetch related user
       });
 
       if (!collaborator) {
@@ -196,193 +226,196 @@ export class CollaboratorService {
   }
 }
 
-@Injectable()
-export class SongCollaboratorService {
-  private readonly logger = new Logger(SongCollaboratorService.name);
+//   async create(
+//     createCollaboratorDto: CreateCollaboratorDto,
+//   ): Promise<ApiResponse<Collaborator>> {
+//     try {
+//       const existingCollaborator = await this.collaboratorRepository.findOne({
+//         where: { email: createCollaboratorDto.email },
+//       });
 
-  constructor(
-    @InjectRepository(SongCollaborator)
-    private readonly songCollaboratorRepository: Repository<SongCollaborator>,
-    @InjectRepository(Collaborator)
-    private readonly collaboratorRepository: Repository<Collaborator>,
-  ) {}
+//       if (existingCollaborator) {
+//         return {
+//           statusCode: HttpStatus.CONFLICT,
+//           message: 'Collaborator with this email already exists',
+//           data: existingCollaborator, // Return existing if found
+//         };
+//       }
 
-  async createContribution(
-    createDto: CreateSongCollaboratorDto,
-  ): Promise<ApiResponse<SongCollaborator>> {
-    try {
-      // Verify collaborator exists
-      const collaborator = await this.collaboratorRepository.findOne({
-        where: { id: createDto.collaboratorId },
-      });
+//       const collaborator = this.collaboratorRepository.create(
+//         createCollaboratorDto,
+//       );
+//       const savedCollaborator =
+//         await this.collaboratorRepository.save(collaborator);
 
-      if (!collaborator) {
-        return {
-          statusCode: HttpStatus.NOT_FOUND,
-          message: 'Collaborator not found',
-          data: null,
-        };
-      }
+//       return {
+//         statusCode: HttpStatus.CREATED,
+//         message: 'Collaborator created successfully',
+//         data: savedCollaborator,
+//       };
+//     } catch (error) {
+//       this.logger.error(`Failed to create collaborator: ${error.message}`);
+//       return {
+//         statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+//         message: 'An error occurred while creating the collaborator',
+//         data: null,
+//       };
+//     }
+//   }
 
-      const contribution = this.songCollaboratorRepository.create(createDto);
-      const savedContribution =
-        await this.songCollaboratorRepository.save(contribution);
+//   async findAll(): Promise<ApiResponse<Collaborator[]>> {
+//     try {
+//       const collaborators = await this.collaboratorRepository.find({
+//         order: { createdAt: 'DESC' },
+//       });
 
-      return {
-        statusCode: HttpStatus.CREATED,
-        message: 'Contribution added successfully',
-        data: savedContribution,
-      };
-    } catch (error) {
-      this.logger.error(`Failed to create contribution: ${error.message}`);
-      return {
-        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-        message: 'An error occurred while creating the contribution',
-        data: null,
-      };
-    }
-  }
+//       return {
+//         statusCode: HttpStatus.OK,
+//         message: 'Collaborators retrieved successfully',
+//         data: collaborators,
+//       };
+//     } catch (error) {
+//       this.logger.error(`Failed to fetch collaborators: ${error.message}`);
+//       return {
+//         statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+//         message: 'An error occurred while fetching collaborators',
+//         data: [],
+//       };
+//     }
+//   }
 
-  async findBySong(songId: string): Promise<ApiResponse<SongCollaborator[]>> {
-    try {
-      const contributions = await this.songCollaboratorRepository.find({
-        where: { songId },
-        relations: ['collaborator'],
-        order: { createdAt: 'DESC' },
-      });
+//   async findAllUser(userId: string): Promise<ApiResponse<Collaborator[]>> {
+//     try {
+//       const collaborators = await this.collaboratorRepository.find({
+//         where: { createdByUserId: userId }, // Filter by userId
+//         order: { createdAt: 'DESC' },
+//       });
 
-      return {
-        statusCode: HttpStatus.OK,
-        message: 'Contributions retrieved successfully',
-        data: contributions,
-      };
-    } catch (error) {
-      this.logger.error(`Failed to fetch song contributions: ${error.message}`);
-      return {
-        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-        message: 'An error occurred while fetching contributions',
-        data: [],
-      };
-    }
-  }
+//       return {
+//         statusCode: HttpStatus.OK,
+//         message: 'Collaborators retrieved successfully',
+//         data: collaborators,
+//       };
+//     } catch (error) {
+//       this.logger.error(`Failed to fetch collaborators: ${error.message}`);
+//       return {
+//         statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+//         message: 'An error occurred while fetching collaborators',
+//         data: [],
+//       };
+//     }
+//   }
 
-  async updateContribution(
-    id: string,
-    updateDto: UpdateSongCollaboratorDto,
-  ): Promise<ApiResponse<SongCollaborator>> {
-    try {
-      const contribution = await this.songCollaboratorRepository.findOne({
-        where: { id },
-        relations: ['collaborator'],
-      });
+//   async findOne(id: string): Promise<ApiResponse<Collaborator>> {
+//     try {
+//       const collaborator = await this.collaboratorRepository.findOne({
+//         where: { id },
+//       });
 
-      if (!contribution) {
-        return {
-          statusCode: HttpStatus.NOT_FOUND,
-          message: 'Contribution not found',
-          data: null,
-        };
-      }
+//       if (!collaborator) {
+//         return {
+//           statusCode: HttpStatus.NOT_FOUND,
+//           message: 'Collaborator not found',
+//           data: null,
+//         };
+//       }
 
-      Object.assign(contribution, updateDto);
-      const updatedContribution =
-        await this.songCollaboratorRepository.save(contribution);
+//       return {
+//         statusCode: HttpStatus.OK,
+//         message: 'Collaborator retrieved successfully',
+//         data: collaborator,
+//       };
+//     } catch (error) {
+//       this.logger.error(`Failed to fetch collaborator: ${error.message}`);
+//       return {
+//         statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+//         message: 'An error occurred while fetching the collaborator',
+//         data: null,
+//       };
+//     }
+//   }
 
-      return {
-        statusCode: HttpStatus.OK,
-        message: 'Contribution updated successfully',
-        data: updatedContribution,
-      };
-    } catch (error) {
-      this.logger.error(`Failed to update contribution: ${error.message}`);
-      return {
-        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-        message: 'An error occurred while updating the contribution',
-        data: null,
-      };
-    }
-  }
+//   async findByEmail(email: string): Promise<ApiResponse<Collaborator>> {
+//     try {
+//       const collaborator = await this.collaboratorRepository.findOne({
+//         where: { email },
+//       });
 
-  async deleteContribution(id: string): Promise<ApiResponse> {
-    try {
-      const contribution = await this.songCollaboratorRepository.findOne({
-        where: { id },
-      });
+//       if (!collaborator) {
+//         return {
+//           statusCode: HttpStatus.NOT_FOUND,
+//           message: 'Collaborator not found',
+//           data: null,
+//         };
+//       }
 
-      if (!contribution) {
-        return {
-          statusCode: HttpStatus.NOT_FOUND,
-          message: 'Contribution not found',
-        };
-      }
+//       return {
+//         statusCode: HttpStatus.OK,
+//         message: 'Collaborator retrieved successfully',
+//         data: collaborator,
+//       };
+//     } catch (error) {
+//       this.logger.error(
+//         `Failed to fetch collaborator by email: ${error.message}`,
+//       );
+//       return {
+//         statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+//         message: 'An error occurred while fetching the collaborator',
+//         data: null,
+//       };
+//     }
+//   }
 
-      await this.songCollaboratorRepository.softDelete(id);
+//   async update(
+//     id: string,
+//     updateCollaboratorDto: UpdateCollaboratorDto,
+//   ): Promise<ApiResponse<Collaborator>> {
+//     try {
+//       const collaborator = await this.collaboratorRepository.findOne({
+//         where: { id },
+//       });
 
-      return {
-        statusCode: HttpStatus.OK,
-        message: 'Contribution deleted successfully',
-      };
-    } catch (error) {
-      this.logger.error(`Failed to delete contribution: ${error.message}`);
-      return {
-        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-        message: 'An error occurred while deleting the contribution',
-      };
-    }
-  }
+//       if (!collaborator) {
+//         return {
+//           statusCode: HttpStatus.NOT_FOUND,
+//           message: 'Collaborator not found',
+//           data: null,
+//         };
+//       }
 
-  async findByCollaborator(
-    collaboratorId: string,
-  ): Promise<ApiResponse<SongCollaborator[]>> {
-    try {
-      const contributions = await this.songCollaboratorRepository.find({
-        where: { collaboratorId },
-        relations: ['collaborator'],
-        order: { createdAt: 'DESC' },
-      });
+//       if (
+//         updateCollaboratorDto.email &&
+//         updateCollaboratorDto.email !== collaborator.email
+//       ) {
+//         const existingCollaborator = await this.collaboratorRepository.findOne({
+//           where: { email: updateCollaboratorDto.email },
+//         });
 
-      return {
-        statusCode: HttpStatus.OK,
-        message: 'Contributions retrieved successfully',
-        data: contributions,
-      };
-    } catch (error) {
-      this.logger.error(
-        `Failed to fetch collaborator contributions: ${error.message}`,
-      );
-      return {
-        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-        message: 'An error occurred while fetching contributions',
-        data: [],
-      };
-    }
-  }
+//         if (existingCollaborator) {
+//           return {
+//             statusCode: HttpStatus.CONFLICT,
+//             message: 'Email already in use',
+//             data: null,
+//           };
+//         }
+//       }
 
-  async findBySongAndRole(
-    songId: string,
-    role: CollaboratorRole,
-  ): Promise<ApiResponse<SongCollaborator[]>> {
-    try {
-      const contributions = await this.songCollaboratorRepository.find({
-        where: { songId, role },
-        relations: ['collaborator'],
-        order: { createdAt: 'DESC' },
-      });
+//       Object.assign(collaborator, updateCollaboratorDto);
+//       const updatedCollaborator =
+//         await this.collaboratorRepository.save(collaborator);
 
-      return {
-        statusCode: HttpStatus.OK,
-        message: 'Contributions retrieved successfully',
-        data: contributions,
-      };
-    } catch (error) {
-      this.logger.error(
-        `Failed to fetch role-specific contributions: ${error.message}`,
-      );
-      return {
-        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-        message: 'An error occurred while fetching contributions',
-        data: [],
-      };
-    }
-  }
-}
+//       return {
+//         statusCode: HttpStatus.OK,
+//         message: 'Collaborator updated successfully',
+//         data: updatedCollaborator,
+//       };
+//     } catch (error) {
+//       this.logger.error(`Failed to update collaborator: ${error.message}`);
+//       return {
+//         statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+//         message: 'An error occurred while updating the collaborator',
+//         data: null,
+//       };
+//     }
+//   }
+// }
