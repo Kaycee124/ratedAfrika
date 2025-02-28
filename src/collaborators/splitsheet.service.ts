@@ -13,7 +13,7 @@ import { SplitSheet } from './entities/splitsheet.entity';
 import {
   SplitSheetEntry,
   SplitEntryStatus,
-} from './entities/SplitSheetEntry.entity';
+} from './entities/splitsheetEntry.entity';
 import {
   CreateSplitSheetDto,
   ClaimSplitEntryDto,
