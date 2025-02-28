@@ -41,5 +41,5 @@ export const mailerConfig = registerAs('mailer', () => ({
 
 export const splitsConfig = registerAs('splits', () => ({
   serviceChargePercentage:
-    parseFloat(process.env.SERVICE_CHARGE_PERCENTAGE) || 0.15, // Default to 15%
+    parseFloat(process.env.SERVICE_CHARGE_PERCENTAGE) || 15, // Default to 15%
 }));

@@ -6,8 +6,8 @@ import { CollaboratorService } from './collaborators.service';
 import { Collaborator } from './entities/collaborator.entity';
 import { AuthModule } from '../auth/auth.module';
 import { SongsModule } from '../songs/songs.module'; // Need this for SongOwnerGuard
-// import { SplitSheetService } from './splitsheet.service';
-// import { SplitSheetController } from './splitsheet.controller';
+import { SplitSheetService } from './splitsheet.service';
+import { SplitSheetController } from './splitsheet.controller';
 
 @Module({
   imports: [
@@ -15,14 +15,8 @@ import { SongsModule } from '../songs/songs.module'; // Need this for SongOwnerG
     AuthModule, // Global module for auth
     SongsModule, // For SongOwnerGuard and Song entity
   ],
-  providers: [
-    CollaboratorService,
-    // SplitSheetService
-  ],
-  controllers: [
-    CollaboratorController,
-    // SplitSheetController
-  ],
+  providers: [CollaboratorService, SplitSheetService],
+  controllers: [CollaboratorController, SplitSheetController],
   exports: [
     CollaboratorService,
     // SplitSheetService

@@ -136,6 +136,7 @@ export class EmailService {
     email: string,
     claimLink: string,
     recipientName: string,
+    extraDetails: { songTitle: string; percentage: number; claimToken: string }, // Updated to accept an object
   ): Promise<void> {
     try {
       await this.mailerService.sendMail({
@@ -145,6 +146,7 @@ export class EmailService {
         context: {
           claimLink,
           recipientName,
+          ...extraDetails, // Spread extraDetails into the context
         },
       });
     } catch (error) {

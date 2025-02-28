@@ -8,7 +8,7 @@ import {
   ManyToOne,
 } from 'typeorm';
 import { Song } from '../../songs/entities/song.entity';
-import { SplitSheetEntry } from './SplitSheetEntry.entity';
+import { SplitSheetEntry } from './splitsheetEntry.entity';
 
 @Entity('split_sheets')
 export class SplitSheet {

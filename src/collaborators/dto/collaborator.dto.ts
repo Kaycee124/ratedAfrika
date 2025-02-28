@@ -244,7 +244,7 @@ export class CreateSplitSheetDto {
 export class ClaimSplitEntryDto {
   @IsNotEmpty()
   @IsString()
-  encryptedEntryId: string;
+  claimToken: string; // Replace encryptedEntryId with claimToken
 }
 
 export class UpdateSplitSheetEntryDto extends CreateSplitSheetEntryDto {

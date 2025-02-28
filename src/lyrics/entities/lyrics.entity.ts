@@ -19,7 +19,7 @@ export class Lyrics {
   id: string;
 
   @Column({ type: 'text' })
-  basicText: string;
+  basicLyrics: string;
 
   @Column('jsonb')
   synchronizedLyrics: {

@@ -6,15 +6,12 @@
 </head>
 <body>
   <h1>Hello {{recipientName}},</h1>
-
-  <p>You've been added to a split sheet for a song! To claim your share of the royalties, please click the link below:</p>
-
-  <a href="{{claimLink}}">{{claimLink}}</a>
-
+  <p>You've been added to a split sheet for the song "{{songTitle}}"! You've been allocated {{percentage}}% of the royalties.</p>
+  <p>To claim your share, please click the link below:</p>
+  <a href="{{claimLink}}">Claim Your Royalties</a>
+  <p>Your claim token is: {{claimToken}}</p>
   <p>This link will take you to a page where you can review the split details and securely connect your payment information.</p>
-
-  <p>If you have any questions or need assistance, please don't hesitate to contact us at <a href="mailto:support@ratedafrika.com">support@ratedafrika.com</a>.</p> 
-
+  <p>If you have any questions or need assistance, please don't hesitate to contact us at <a href="mailto:support@ratedafrika.com">support@ratedafrika.com</a>.</p>
   <p>Thank you,</p>
   <p>The ratedAfrika Team</p>
 </body>

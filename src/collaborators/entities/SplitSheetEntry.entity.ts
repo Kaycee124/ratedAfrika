@@ -36,6 +36,9 @@ export class SplitSheetEntry {
   @Column()
   recipientEmail: string;
 
+  @Column({ unique: true }) // Ensure claim tokens are unique
+  claimToken: string;
+
   @Column('decimal', { precision: 5, scale: 2 }) // Adjust precision and scale as needed
   percentage: number;
 

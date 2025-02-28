@@ -338,15 +338,15 @@ export class SongsService {
         }
       }
 
-      // -- previewClip
-      if (createDto.previewClip && createDto.previewClip.fileId) {
-        const previewClipError = await this.checkFileOwnershipOrExistence(
-          createDto.previewClip.fileId,
-          user,
-          'previewClip.fileId',
-        );
-        if (previewClipError) return previewClipError;
-      }
+      // // -- previewClip
+      // if (createDto.previewClip && createDto.previewClip.fileId) {
+      //   const previewClipError = await this.checkFileOwnershipOrExistence(
+      //     createDto.previewClip.fileId,
+      //     user,
+      //     'previewClip.fileId',
+      //   );
+      //   if (previewClipError) return previewClipError;
+      // }
 
       // -- musicVideo
       if (createDto.musicVideo && createDto.musicVideo.thumbnailId) {

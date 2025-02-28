@@ -37,6 +37,7 @@ export class MixVersionDto {
 
 export class PreviewClipDto {
   @IsUUID()
+  @IsOptional()
   fileId: string;
 
   @IsNumber()

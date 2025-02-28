@@ -4,6 +4,7 @@ import {
   ValidateNested,
   IsNumber,
   Min,
+  IsOptional,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -21,9 +22,10 @@ export class CreateLyricsDto {
   songId: string;
 
   @IsString()
-  basicText: string;
+  basicLyrics: string;
 
   @IsArray()
+  @IsOptional()
   @ValidateNested({ each: true })
   @Type(() => SynchronizedLyricLine)
   synchronizedLyrics: SynchronizedLyricLine[];
