@@ -298,17 +298,44 @@ export class AuthController {
     status: HttpStatus.OK,
     description: 'Spotify OAuth callback received',
   })
-  async spotifyCallback(@Req() req) {
+  async spotifyCallback(@Req() req, @Res() res) {
     try {
       this.logger.debug('Spotify OAuth Callback Data:', req.user);
-      return {
-        statusCode: HttpStatus.OK,
-        message: 'Spotify OAuth callback received successfully',
-        data: req.user,
+
+      // Extract the profile data from req.user
+      const spotifyProfile = {
+        id: req.user.user.spotify_id,
+        emails: [{ value: req.user.user.email }],
+        displayName: req.user.user.name,
+        photos: req.user.user.profileImage
+          ? [{ value: req.user.user.profileImage }]
+          : [],
       };
+
+      // Validate user using your existing validateSpotifyUser method
+      const validatedUser =
+        await this.authService.validateSpotifyUser(spotifyProfile);
+
+      // Generate JWT tokens
+      const { accessToken, refreshToken } =
+        await this.authService.generateJwt(validatedUser);
+
+      // Build redirect URL with tokens
+      const frontendUrl = new URL(process.env.FRONTEND_URL + '/overview');
+      const tokenPayload = Buffer.from(
+        JSON.stringify({
+          accessToken,
+          refreshToken,
+        }),
+      ).toString('base64');
+
+      frontendUrl.searchParams.append('auth', tokenPayload);
+
+      // Redirect to frontend
+      return res.redirect(frontendUrl.toString());
     } catch (error) {
-      this.logger.error('Spotify OAuth callback failed', error);
-      throw new HttpException('Authentication failed', HttpStatus.UNAUTHORIZED);
+      this.logger.error('Spotify OAuth callback failed:', error);
+      return res.redirect(`${process.env.FRONTEND_URL}/auth/error`);
     }
   }
 }
