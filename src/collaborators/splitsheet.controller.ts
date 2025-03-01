@@ -23,7 +23,7 @@ import {
 import { JwtAuthGuard } from 'src/auth/guards/jwt/jwt.guard';
 import { ApiTags } from '@nestjs/swagger';
 import { SplitSheet } from './entities/splitsheet.entity';
-import { SplitSheetEntry } from './entities/SplitSheetEntry.entity';
+import { SplitSheetEntry } from './entities/splitsheetEntry.entity';
 
 @ApiTags('Split Sheets')
 @Controller('split-sheets')
