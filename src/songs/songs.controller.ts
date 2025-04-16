@@ -235,6 +235,54 @@ export class SongsController {
     return this.songsService.querySongs(queryDto, req.user);
   }
 
+  @Get('userObject')
+  @ApiOperation({ summary: 'Get songs by user' })
+  @SwaggerApiResponse({
+    status: HttpStatus.OK,
+    description: 'Songs retrieved successfully',
+  })
+  async getSongsByUser(@Request() req): Promise<ApiResponse<Song[]>> {
+    return this.songsService.getSongsByUser(req.user);
+  }
+
+  @Get('release-containers/userObject')
+  @ApiOperation({ summary: 'Get release containers by user' })
+  @SwaggerApiResponse({
+    status: HttpStatus.OK,
+    description: 'Release containers retrieved successfully',
+  })
+  async getReleaseContainersByUser(
+    @Request() req,
+  ): Promise<ApiResponse<ReleaseContainer[]>> {
+    return this.songsService.getReleaseContainersByUser(req.user);
+  }
+
+  @Get('release-containers/artist/:artistId')
+  @ApiOperation({ summary: 'Get release containers by artist' })
+  @SwaggerApiResponse({
+    status: HttpStatus.OK,
+    description: 'Release containers retrieved successfully',
+  })
+  async getReleaseContainersByArtist(
+    @Param('artistId') artistId: string,
+    @Request() req,
+  ): Promise<ApiResponse<ReleaseContainer[]>> {
+    return this.songsService.getReleaseContainersByArtist(artistId, req.user);
+  }
+
+  @Get('artist/:artistId')
+  @ApiOperation({ summary: 'Get songs by artist' })
+  @SwaggerApiResponse({
+    status: HttpStatus.OK,
+    description: 'Songs retrieved successfully',
+  })
+  async getArtistSongs(
+    @Param('artistId') artistId: string,
+    @Request() req,
+  ): Promise<ApiResponse<Song[]>> {
+    return this.songsService.getArtistSongs(artistId, req.user);
+  }
+
   @Get(':id')
   @UseGuards(SubscriptionGuard)
   @ApiOperation({ summary: 'Get song details' })

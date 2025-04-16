@@ -24,6 +24,10 @@ import {
   ReleaseContainerStatus,
 } from '../entities/album.entity';
 import { ReleaseType, SongStatus } from '../entities/song.entity';
+// Added from google gemmini
+import { Artist } from '../../artists/entities/artist.entity';
+import { TempArtist } from '../../artists/entities/temp-artist.entity';
+import { ReleaseContainer } from '../entities/album.entity';
 
 // Shared DTOs for common structures
 export class MixVersionDto {
@@ -505,3 +509,50 @@ export class TempArtistDto {
   @IsUrl()
   youtubeUrl?: string;
 }
+
+// Extra added code from Google Gemini
+// DTO for returning song details along with generated file URLs
+export class SongWithUrlsDto {
+  id: string;
+  title: string;
+  releaseType: ReleaseType;
+  releaseLanguage: string;
+  label: string;
+  primaryGenre: string;
+  secondaryGenres: string[];
+  recordingYear: number;
+  isExplicit: boolean;
+  isrc: string | null;
+  description: string | null;
+  originalReleaseDate: Date | null;
+  proposedReleaseDate: Date;
+  releaseTime: string;
+  isPreOrder: boolean;
+  preOrderDate: Date | null;
+  trackPrice: number;
+  targetStores: string[];
+  targetCountries: string[];
+  status: SongStatus;
+  reviewNotes: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  trackNumber: number | null;
+
+  // Fields replacing IDs with URLs
+  coverArtUrl: string | null;
+  masterTrackUrl: string | null;
+  mixVersionsUrls?: { versionLabel: string; fileUrl: string | null }[];
+  previewClipUrl?: {
+    fileUrl: string | null;
+    startTime: number;
+    endTime: number;
+  };
+  musicVideoUrls?: { url: string; thumbnailUrl?: string | null };
+
+  // Related entities (adjust details as needed for API response)
+  primaryArtist: Artist;
+  featuredPlatformArtists?: Artist[];
+  featuredTempArtists?: TempArtist[];
+  releaseContainer?: ReleaseContainer;
+}
+// End of Extra added code from Google Gemini

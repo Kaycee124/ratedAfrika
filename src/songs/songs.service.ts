@@ -24,6 +24,7 @@ import {
 import { AudioFile } from 'src/storage/entities/audio-file.entity';
 import { ImageFile } from 'src/storage/entities/image-file.entity';
 import { VideoFile } from 'src/storage/entities/video-file.entity';
+import { StorageService } from 'src/storage/services/storage.service';
 
 interface ApiResponse<T = any> {
   statusCode: number;
@@ -61,6 +62,7 @@ export class SongsService {
 
     @InjectRepository(VideoFile)
     private readonly videoFileRepository: Repository<VideoFile>,
+    private readonly storageService: StorageService,
   ) {}
 
   private async checkFileOwnershipOrExistence(
@@ -411,6 +413,7 @@ export class SongsService {
         uploadedBy: user,
         status: SongStatus.DRAFT,
         featuredTempArtists: tempFeaturedArtists,
+        primaryArtist,
       });
 
       const savedSong = await this.songRepository.save(song);
@@ -832,27 +835,23 @@ export class SongsService {
         };
       }
 
-      //TODO: Fix this collaborator part soon
+      // Get file paths
+      const filePaths = await this.getFilePaths(song, user);
 
-      // If song exists, load collaborators separately
-      // const songWithCollaborators = await this.songRepository.findOne({
-      //   where: { id: song.id },
-      //   relations: {
-      //     songCollaborators: {
-      //       collaborator: true,
-      //     },
-      //   },
-      // });
-
-      // // Merge the collaborators into the original song object
-      // if (songWithCollaborators?.songCollaborators) {
-      //   song.songCollaborators = songWithCollaborators.songCollaborators;
-      // }
+      // Create response object with file paths
+      const response = {
+        ...song,
+        coverArtPath: filePaths.coverArtPath,
+        masterTrackPath: filePaths.masterTrackPath,
+        mixVersions: filePaths.mixVersions,
+        previewClip: filePaths.previewClip,
+        musicVideo: filePaths.musicVideo,
+      };
 
       return {
         statusCode: HttpStatus.OK,
         message: 'Song details retrieved successfully',
-        data: song,
+        data: response,
       };
     } catch (error) {
       this.logger.error(`Failed to get song details - ID: ${id}`, {
@@ -896,31 +895,23 @@ export class SongsService {
           message: 'Release container not found or unauthorized',
         };
       }
-      //TODO: Fix on returning the collaborators later
 
-      // // If container exists, load collaborators separately
-      // if (container.tracks?.length) {
-      //   const tracksWithCollaborators = await Promise.all(
-      //     container.tracks.map(async (track) => {
-      //       const trackWithCollabs = await this.songRepository.findOne({
-      //         where: { id: track.id },
-      //         relations: {
-      //           songCollaborators: {
-      //             collaborator: true,
-      //           },
-      //         },
-      //       });
-      //       return trackWithCollabs;
-      //     }),
-      //   );
+      // Get file paths
+      const filePaths = await this.getReleaseContainerFilePaths(
+        container,
+        user,
+      );
 
-      //   container.tracks = tracksWithCollaborators;
-      // }
+      // Create response object with file paths
+      const response = {
+        ...container,
+        coverArtPath: filePaths.coverArtPath,
+      };
 
       return {
         statusCode: HttpStatus.OK,
         message: 'Release container details retrieved successfully',
-        data: container,
+        data: response,
       };
     } catch (error) {
       this.logger.error(`Failed to get release container details - ID: ${id}`, {
@@ -935,6 +926,341 @@ export class SongsService {
       };
     }
   }
+
+  async getReleaseContainersByArtist(
+    artistId: string,
+    user: User,
+  ): Promise<ApiResponse<ReleaseContainer[]>> {
+    try {
+      // First verify the artist exists
+      const artist = await this.artistRepository.findOne({
+        where: { id: artistId },
+      });
+
+      if (!artist) {
+        return {
+          statusCode: HttpStatus.NOT_FOUND,
+          message: 'Artist not found',
+        };
+      }
+
+      // Find all release containers where the artist is the primary artist
+      const containers = await this.releaseContainerRepository
+        .createQueryBuilder('container')
+        .leftJoinAndSelect('container.primaryArtist', 'primaryArtist')
+        .leftJoinAndSelect(
+          'container.featuredPlatformArtists',
+          'featuredArtists',
+        )
+        .leftJoinAndSelect('container.featuredTempArtists', 'tempArtists')
+        .leftJoinAndSelect('container.tracks', 'tracks')
+        .where('primaryArtist.id = :artistId', { artistId })
+        .getMany();
+
+      // Get file paths for each container
+      const containersWithPaths = await Promise.all(
+        containers.map(async (container) => {
+          const filePaths = await this.getReleaseContainerFilePaths(
+            container,
+            user,
+          );
+          return {
+            ...container,
+            coverArtPath: filePaths.coverArtPath,
+          };
+        }),
+      );
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Artist release containers retrieved successfully',
+        data: containersWithPaths,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Failed to get artist release containers - Artist ID: ${artistId}`,
+        {
+          error: error.message,
+          stackTrace: error.stack,
+          userId: user.id,
+        },
+      );
+
+      return {
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: 'Failed to retrieve artist release containers',
+      };
+    }
+  }
+
+  async getReleaseContainersByUser(
+    user: User,
+  ): Promise<ApiResponse<ReleaseContainer[]>> {
+    try {
+      // Find all release containers uploaded by the user
+      const containers = await this.releaseContainerRepository
+        .createQueryBuilder('container')
+        .leftJoinAndSelect('container.primaryArtist', 'primaryArtist')
+        .leftJoinAndSelect(
+          'container.featuredPlatformArtists',
+          'featuredArtists',
+        )
+        .leftJoinAndSelect('container.featuredTempArtists', 'tempArtists')
+        .leftJoinAndSelect('container.tracks', 'tracks')
+        .where('container.uploadedById = :userId', { userId: user.id })
+        .getMany();
+
+      // Get file paths for each container
+      const containersWithPaths = await Promise.all(
+        containers.map(async (container) => {
+          const filePaths = await this.getReleaseContainerFilePaths(
+            container,
+            user,
+          );
+          return {
+            ...container,
+            coverArtPath: filePaths.coverArtPath,
+          };
+        }),
+      );
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'User release containers retrieved successfully',
+        data: containersWithPaths,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Failed to get user release containers - User ID: ${user.id}`,
+        {
+          error: error.message,
+          stackTrace: error.stack,
+          userId: user.id,
+        },
+      );
+
+      return {
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: 'Failed to retrieve user release containers',
+      };
+    }
+  }
+
+  async getSongsByUser(user: User): Promise<ApiResponse<Song[]>> {
+    try {
+      // Find all songs uploaded by the user
+      const songs = await this.songRepository
+        .createQueryBuilder('song')
+        .leftJoinAndSelect('song.primaryArtist', 'primaryArtist')
+        .leftJoinAndSelect('song.featuredPlatformArtists', 'featuredArtists')
+        .leftJoinAndSelect('song.featuredTempArtists', 'tempArtists')
+        .leftJoinAndSelect('song.releaseContainer', 'releaseContainer')
+        .where('song.uploadedById = :userId', { userId: user.id })
+        .getMany();
+
+      // Get file paths for each song
+      const songsWithPaths = await Promise.all(
+        songs.map(async (song) => {
+          const filePaths = await this.getFilePaths(song, user);
+          return {
+            ...song,
+            coverArtPath: filePaths.coverArtPath,
+            masterTrackPath: filePaths.masterTrackPath,
+            mixVersions: filePaths.mixVersions,
+            previewClip: filePaths.previewClip,
+            musicVideo: filePaths.musicVideo,
+          };
+        }),
+      );
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'User songs retrieved successfully',
+        data: songsWithPaths,
+      };
+    } catch (error) {
+      this.logger.error(`Failed to get user songs - User ID: ${user.id}`, {
+        error: error.message,
+        stackTrace: error.stack,
+        userId: user.id,
+      });
+
+      return {
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: 'Failed to retrieve user songs',
+      };
+    }
+  }
+
+  private async getReleaseContainerFilePaths(
+    container: ReleaseContainer,
+    user: User,
+  ): Promise<{
+    coverArtPath?: string;
+  }> {
+    const result: any = {};
+
+    // Get cover art path
+    if (container.coverArtId) {
+      result.coverArtPath = await this.storageService.getSignedUrl(
+        container.coverArtId,
+        user,
+      );
+    }
+
+    return result;
+  }
+
+  // Get File Paths
+  // Added new function to get file paths for the song response
+
+  private async getFilePaths(
+    song: Song,
+    user: User,
+  ): Promise<{
+    coverArtPath?: string;
+    masterTrackPath?: string;
+    mixVersions?: { fileId: string; versionLabel: string; path: string }[];
+    previewClip?: {
+      fileId: string;
+      startTime: number;
+      endTime: number;
+      path: string;
+    };
+    musicVideo?: { url: string; thumbnailId: string; thumbnailPath: string };
+  }> {
+    const result: any = {};
+
+    // Get cover art path
+    if (song.coverArtId) {
+      result.coverArtPath = await this.storageService.getSignedUrl(
+        song.coverArtId,
+        user,
+      );
+    }
+
+    // Get master track path
+    if (song.masterTrackId) {
+      result.masterTrackPath = await this.storageService.getSignedUrl(
+        song.masterTrackId,
+        user,
+      );
+    }
+
+    // Get mix versions paths
+    if (song.mixVersions?.length) {
+      result.mixVersions = await Promise.all(
+        song.mixVersions.map(async (mv) => ({
+          ...mv,
+          path: await this.storageService.getSignedUrl(mv.fileId, user),
+        })),
+      );
+    }
+
+    // Get preview clip path
+    if (song.previewClip?.fileId) {
+      result.previewClip = {
+        ...song.previewClip,
+        path: await this.storageService.getSignedUrl(
+          song.previewClip.fileId,
+          user,
+        ),
+      };
+    }
+
+    // Get music video thumbnail path
+    if (song.musicVideo?.thumbnailId) {
+      result.musicVideo = {
+        ...song.musicVideo,
+        thumbnailPath: await this.storageService.getSignedUrl(
+          song.musicVideo.thumbnailId,
+          user,
+        ),
+      };
+    }
+
+    return result;
+  }
+
+  async getArtistSongs(
+    artistId: string,
+    user: User,
+  ): Promise<ApiResponse<Song[]>> {
+    try {
+      // First verify the artist exists
+      const artist = await this.artistRepository.findOne({
+        where: { id: artistId },
+      });
+
+      if (!artist) {
+        return {
+          statusCode: HttpStatus.NOT_FOUND,
+          message: 'Artist not found',
+        };
+      }
+
+      // Log the query parameters
+      this.logger.debug(
+        `Searching for songs where artist ${artistId} is primary artist`,
+      );
+
+      // Find all songs where the artist is the primary artist
+      const songs = await this.songRepository
+        .createQueryBuilder('song')
+        .leftJoinAndSelect('song.primaryArtist', 'primaryArtist')
+        .leftJoinAndSelect('song.featuredPlatformArtists', 'featuredArtists')
+        .leftJoinAndSelect('song.featuredTempArtists', 'tempArtists')
+        .leftJoinAndSelect('song.releaseContainer', 'releaseContainer')
+        .where('primaryArtist.id = :artistId', { artistId })
+        .getMany();
+
+      // Log the number of songs found
+      this.logger.debug(
+        `Found ${songs.length} songs where artist ${artistId} is primary artist`,
+      );
+
+      if (songs.length === 0) {
+        return {
+          statusCode: HttpStatus.OK,
+          message: 'No songs found where this artist is the primary artist',
+          data: [],
+        };
+      }
+
+      // Get file paths for each song
+      const songsWithPaths = await Promise.all(
+        songs.map(async (song) => {
+          const filePaths = await this.getFilePaths(song, user);
+          return {
+            ...song,
+            coverArtPath: filePaths.coverArtPath,
+            masterTrackPath: filePaths.masterTrackPath,
+            mixVersions: filePaths.mixVersions,
+            previewClip: filePaths.previewClip,
+            musicVideo: filePaths.musicVideo,
+          };
+        }),
+      );
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Artist songs retrieved successfully',
+        data: songsWithPaths,
+      };
+    } catch (error) {
+      this.logger.error(`Failed to get artist songs - Artist ID: ${artistId}`, {
+        error: error.message,
+        stackTrace: error.stack,
+        userId: user.id,
+      });
+
+      return {
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: 'Failed to retrieve artist songs',
+      };
+    }
+  }
+
   async deleteSong(id: string, user: User): Promise<ApiResponse> {
     try {
       const song = await this.songRepository.findOne({

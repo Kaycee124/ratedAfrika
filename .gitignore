@@ -58,3 +58,11 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 # Storage
 uploads/
 .env.copy
+
+# Ignore all files in the uploads directory
+uploads/*
+
+#Ignore envs in any form in the root directory
+*.env
+
+
