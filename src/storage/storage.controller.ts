@@ -120,6 +120,8 @@ import {
   BadRequestException,
   InternalServerErrorException,
   Query,
+  Res,
+  NotFoundException,
   HttpStatus,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -133,17 +135,23 @@ import {
   ApiOperation,
   ApiParam,
   ApiQuery,
+  ApiResponse,
 } from '@nestjs/swagger';
 import { UploadFileDto, InitiateMultipartUploadDto } from './dto/upload.dto';
 import { memoryStorage } from 'multer';
-import { ApiResponse } from 'src/auth/auth.service';
+import { ApiResponse as AuthApiResponse } from 'src/auth/auth.service';
 import { FileBase } from './entities/file-base.entity';
+import { Response } from 'express';
+import { Logger } from '@nestjs/common';
+import { Readable } from 'stream';
 
 @ApiTags('storage')
 @Controller('storage')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class StorageController {
+  private readonly logger = new Logger(StorageController.name);
+
   constructor(private readonly storageService: StorageService) {}
 
   @Post('upload')
@@ -273,10 +281,54 @@ export class StorageController {
       return await this.storageService.getSignedUrl(fileId, req.user);
     } catch (error) {
       throw new InternalServerErrorException(
-        `Failed to get signed URL: ${error.message}`,
+        `Failed to generate signed URL: ${error.message}`,
       );
     }
   }
+
+  @Get('files/:fileId')
+  @ApiOperation({ summary: 'Get file content' })
+  @ApiParam({ name: 'fileId', description: 'File ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'File content retrieved successfully',
+  })
+  @ApiResponse({ status: 404, description: 'File not found' })
+  async getFile(
+    @Param('fileId') fileId: string,
+    @Res() res: Response,
+  ) {
+    try {
+      const file = await this.storageService.getFile(fileId);
+      if (!file) {
+        throw new NotFoundException('File not found');
+      }
+
+      // Get file metadata for headers
+      const fileMetadata = await this.storageService.getFileMetadata(fileId, null);
+      if (!fileMetadata) {
+        throw new NotFoundException('File metadata not found');
+      }
+
+      // Set appropriate headers
+      res.setHeader('Content-Type', fileMetadata.mimeType);
+      res.setHeader(
+        'Content-Disposition',
+        `inline; filename="${fileMetadata.filename}"`,
+      );
+
+      // Stream the file
+      if (file instanceof Readable) {
+        file.pipe(res);
+      } else {
+        res.send(file);
+      }
+    } catch (error) {
+      this.logger.error(`Failed to get file: ${error.message}`, error.stack);
+      throw error;
+    }
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get upload details by ID' })
   @ApiParam({ name: 'id', description: 'Upload ID' })
@@ -289,7 +341,7 @@ export class StorageController {
   async getUpload(
     @Param('id') id: string,
     @Query('type') type?: string,
-  ): Promise<ApiResponse<FileBase>> {
+  ): Promise<AuthApiResponse<FileBase>> {
     // Check if type parameter is missing
     if (!type) {
       return {
@@ -304,14 +356,26 @@ export class StorageController {
     if (!validTypes.includes(type)) {
       return {
         statusCode: HttpStatus.BAD_REQUEST,
-        message: `Invalid file type. Must be one of: ${validTypes.join(', ')}`,
+        message: 'Invalid file type specified',
         data: null,
       };
     }
 
-    return this.storageService.getUploadById(
-      id,
-      type as 'audio' | 'image' | 'video',
-    );
+    try {
+      return await this.storageService.getUploadById(
+        id,
+        type as 'audio' | 'image' | 'video',
+      );
+    } catch (error: any) {
+      this.logger.error(
+        `Failed to retrieve upload details: ${error.message}`,
+        error.stack,
+      );
+      return {
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: 'Failed to retrieve upload details',
+        data: null,
+      };
+    }
   }
 }

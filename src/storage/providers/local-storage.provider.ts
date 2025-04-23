@@ -68,7 +68,7 @@ export class LocalStorageProvider implements StorageProvider {
     key: string,
     data: Buffer,
     options: UploadOptions = {},
-  ): Promise<{ key: string; url: string }> {
+  ): Promise<{ key: string }> {
     try {
       if (!data) {
         throw new Error('Upload data is required');
@@ -78,19 +78,20 @@ export class LocalStorageProvider implements StorageProvider {
         throw new Error('Upload data must be a Buffer');
       }
 
-      const fullPath = this.getFullPath(key);
+      // Create a unique filename to prevent collisions
+      const uniqueFilename = `${Date.now()}-${Math.random().toString(36).substring(7)}-${key}`;
+      const fullPath = this.getFullPath(uniqueFilename);
       await this.ensureDirectory(fullPath);
 
+      // Write the file
       await fsPromises.writeFile(fullPath, data);
 
       if (options.metadata) {
-        await this.updateMetadata(key, options.metadata);
+        await this.updateMetadata(uniqueFilename, options.metadata);
       }
 
-      return {
-        key,
-        url: `file://${fullPath}`,
-      };
+      // Return only the storage key
+      return { key: uniqueFilename };
     } catch (error) {
       this.logger.error(`Failed to upload file ${key}`, error.stack);
       throw error;
@@ -116,9 +117,11 @@ export class LocalStorageProvider implements StorageProvider {
         await this.updateMetadata(key, options.metadata);
       }
 
+      // Return HTTP URL instead of file:// URL
+      const baseUrl = process.env.API_BASE_URL || 'http://localhost:3000';
       return {
         key,
-        url: `file://${fullPath}`,
+        url: `${baseUrl}/uploads/${key}`,
       };
     } catch (error) {
       this.logger.error(`Failed to upload stream ${key}`, error.stack);
@@ -145,8 +148,24 @@ export class LocalStorageProvider implements StorageProvider {
   }
 
   async getSignedUrl(key: string, expiresIn: number): Promise<string> {
-    // Local storage doesn't support signed URLs, return direct file path
-    return `file://${this.getFullPath(key)}`;
+    try {
+      // 1. Get the actual file path
+      const fullPath = this.getFullPath(key);
+
+      // 2. Verify file exists
+      if (!(await this.exists(key))) {
+        throw new Error('File not found');
+      }
+
+      // 3. Return the key for the service layer to use
+      return key;
+    } catch (error) {
+      this.logger.error(
+        `Failed to generate signed URL for ${key}`,
+        error.stack,
+      );
+      throw error;
+    }
   }
 
   async delete(key: string): Promise<void> {

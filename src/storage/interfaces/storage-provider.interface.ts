@@ -125,7 +125,7 @@ export interface StorageProvider {
     key: string,
     data: Buffer,
     options?: UploadOptions,
-  ): Promise<{ key: string; url: string }>;
+  ): Promise<{ key: string }>;
 
   /**
    * Upload a file from a stream
@@ -134,10 +134,10 @@ export interface StorageProvider {
     key: string,
     stream: Readable,
     options?: UploadOptions,
-  ): Promise<{ key: string; url: string }>;
+  ): Promise<{ key: string }>;
 
   /**
-   * Download a file as a buffer
+   * Download a file as a buffer or stream
    */
   download(key: string, options?: DownloadOptions): Promise<Buffer | Readable>;
 

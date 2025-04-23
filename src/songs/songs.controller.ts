@@ -28,6 +28,7 @@ import {
   CreateReleaseContainerDto,
   UpdateReleaseContainerDto,
   QueryReleaseContainerDto,
+  DiscographyResponseDto,
 } from './dtos/song.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt/jwt.guard';
 import {
@@ -281,6 +282,21 @@ export class SongsController {
     @Request() req,
   ): Promise<ApiResponse<Song[]>> {
     return this.songsService.getArtistSongs(artistId, req.user);
+  }
+
+  @Get('artist/:artistId/discography')
+  @ApiOperation({ summary: 'Get artist discography' })
+  @ApiParam({ name: 'artistId', description: 'Artist ID' })
+  @SwaggerApiResponse({
+    status: 200,
+    description: 'Artist discography retrieved successfully',
+  })
+  @SwaggerApiResponse({ status: 404, description: 'Artist not found' })
+  async getArtistDiscography(
+    @Param('artistId') artistId: string,
+    @Request() req,
+  ): Promise<ApiResponse<DiscographyResponseDto>> {
+    return this.songsService.getArtistDiscography(artistId, req.user);
   }
 
   @Get(':id')

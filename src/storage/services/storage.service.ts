@@ -6,6 +6,8 @@ import {
   Inject,
   BadRequestException,
   HttpStatus,
+  NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { StorageProvider } from '../interfaces/storage-provider.interface';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -41,6 +43,8 @@ import { LocalStorageProvider } from '../providers/local-storage.provider';
 import { S3StorageProvider } from '../providers/s3-storage.provider';
 import { FileValidationService } from './file-validation.service';
 import { ApiResponse } from 'src/auth/auth.service';
+import { Readable } from 'stream';
+import { DownloadOptions } from '../interfaces/storage-provider.interface';
 
 @Injectable()
 export class StorageService {
@@ -168,7 +172,7 @@ export class StorageService {
       const repository = this.getRepositoryForType(options.type);
 
       // Upload to storage provider
-      const { key, url } = await this.provider.upload(
+      const { key } = await this.provider.upload(
         file.originalname,
         file.buffer,
         {
@@ -183,7 +187,7 @@ export class StorageService {
         originalFilename: file.originalname,
         mimeType: file.mimetype,
         size: file.size,
-        path: url,
+        path: key, // Store the storage key
         bucket: process.env.STORAGE_BUCKET || 'default-bucket',
         key: key,
         uploadedBy: user,
@@ -237,24 +241,12 @@ export class StorageService {
       // Save the initial entity
       const savedEntity = await repository.save(fileEntity);
 
-      // Trigger async validation based on file type
-      // switch (options.type) {
-      //   case 'audio':
-      //     void this.fileValidationService.validateAudioFile(
-      //       savedEntity as AudioFile,
-      //     );
-      //     break;
-      //   case 'image':
-      //     void this.fileValidationService.validateImageFile(
-      //       savedEntity as ImageFile,
-      //     );
-      //     break;
-      //   case 'video':
-      //     void this.fileValidationService.validateVideoFile(
-      //       savedEntity as VideoFile,
-      //     );
-      //     break;
-      // }
+      // Generate URL with file ID
+      const baseUrl = process.env.API_BASE_URL || 'http://localhost:3000';
+      savedEntity.path = `${baseUrl}/storage/files/${savedEntity.id}`;
+
+      // Update the entity with the correct URL
+      await repository.save(savedEntity);
 
       return savedEntity;
     } catch (error) {
@@ -726,83 +718,82 @@ export class StorageService {
     fileId: string,
     user: User,
     expiresIn: number = 3600,
-  ): Promise<string> {
+  ): Promise<ApiResponse<string>> {
     try {
-      // Try to find the file in all possible tables
+      // 1. Find the file in all possible repositories
       let file: FileBase | null = null;
+      const repositories = [
+        this.audioFileRepository,
+        this.imageFileRepository,
+        this.videoFileRepository,
+      ];
 
-      // Check each repository in sequence
-      file = await this.audioFileRepository.findOne({
-        where: { id: fileId },
-        relations: ['uploadedBy'],
-      });
-
-      if (!file) {
-        file = await this.imageFileRepository.findOne({
+      for (const repo of repositories) {
+        file = await repo.findOne({
           where: { id: fileId },
           relations: ['uploadedBy'],
         });
+        if (file) break;
       }
 
       if (!file) {
-        file = await this.videoFileRepository.findOne({
-          where: { id: fileId },
-          relations: ['uploadedBy'],
-        });
+        return {
+          statusCode: HttpStatus.NOT_FOUND,
+          message: 'File not found',
+          data: null,
+        };
       }
 
-      if (!file) {
-        this.logger.error(`File not found with ID: ${fileId}`);
-        throw new Error('File not found');
-      }
-
-      // Check access permissions
-      if (!file.isPublic && (!user || file.uploadedBy?.id !== user.id)) {
-        this.logger.warn(
-          `Access denied for user ${user?.id} to file ${fileId}`,
-        );
-        throw new Error('Access denied');
-      }
-
-      // Update access metrics
+      // 2. Update access metrics
       file.lastAccessedAt = new Date();
       file.downloadCount += 1;
+      await this.getRepositoryForType(this.getFileType(file)).save(file);
 
-      // Save to the appropriate repository
-      if (file instanceof AudioFile) {
-        await this.audioFileRepository.save(file);
-      } else if (file instanceof ImageFile) {
-        await this.imageFileRepository.save(file);
-      } else if (file instanceof VideoFile) {
-        await this.videoFileRepository.save(file);
-      }
+      // 3. Generate public URL
+      const baseUrl = process.env.API_BASE_URL || 'http://localhost:3000';
+      const url = `${baseUrl}/storage/files/${fileId}`;
 
-      return this.provider.getSignedUrl(file.key, expiresIn);
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'URL generated successfully',
+        data: url,
+      };
     } catch (error) {
       this.logger.error(
-        `Failed to generate signed URL: ${error.message}`,
+        `Failed to generate URL: ${error.message}`,
         error.stack,
       );
-      throw error;
+      return {
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: 'Failed to generate URL',
+        data: null,
+      };
     }
   }
 
   async getFileMetadata(
     fileId: string,
-    user: User,
+    user: User | null,
   ): Promise<Record<string, any>> {
     try {
-      const file = await this.fileRepository.findOne({
-        where: { id: fileId },
-        relations: ['uploadedBy'],
-      });
+      // Find file by ID in all repositories
+      let file: FileBase | null = null;
+      const repositories = [
+        this.audioFileRepository,
+        this.imageFileRepository,
+        this.videoFileRepository,
+      ];
+
+      for (const repo of repositories) {
+        file = await repo.findOne({
+          where: { id: fileId },
+          relations: ['uploadedBy'],
+        });
+        if (file) break;
+      }
 
       if (!file) {
         throw new Error('File not found');
-      }
-
-      if (!file.isPublic && (!user || file.uploadedBy?.id !== user.id)) {
-        throw new Error('Access denied');
       }
 
       return {
@@ -966,9 +957,78 @@ export class StorageService {
   }
 
   private getFileType(file: FileBase): 'audio' | 'image' | 'video' {
-    if (file instanceof AudioFile) return 'audio';
-    if (file instanceof ImageFile) return 'image';
-    if (file instanceof VideoFile) return 'video';
+    // Check the file's metadata to determine its type
+    const mimeType = file.mimeType.toLowerCase();
+
+    if (mimeType.startsWith('audio/')) return 'audio';
+    if (mimeType.startsWith('image/')) return 'image';
+    if (mimeType.startsWith('video/')) return 'video';
+
+    // Fallback to checking the file's format
+    if (file.metadata?.fileType) {
+      return file.metadata.fileType as 'audio' | 'image' | 'video';
+    }
+
     throw new Error('Unknown file type');
+  }
+
+  async download(
+    key: string,
+    options: DownloadOptions = {},
+  ): Promise<Buffer | Readable> {
+    try {
+      return await this.provider.download(key, options);
+    } catch (error) {
+      this.logger.error(
+        `Failed to download file ${key}: ${error.message}`,
+        error.stack,
+      );
+      throw error;
+    }
+  }
+
+  private async updateAccessMetrics(
+    fileId: string,
+    userId?: string,
+  ): Promise<void> {
+    const file = await this.getFileMetadata(fileId, null);
+    if (!file) return;
+
+    const repository = this.getRepositoryForType(
+      this.getFileType(file as FileBase),
+    );
+    await repository.update(fileId, {
+      lastAccessedAt: new Date(),
+      downloadCount: () => 'downloadCount + 1',
+      ...(userId && { lastAccessedBy: userId }),
+    });
+  }
+
+  async getFile(fileId: string, user?: any): Promise<Buffer | Readable> {
+    // 1. Find file by ID in database
+    let file: FileBase | null = null;
+    const repositories = [
+      this.audioFileRepository,
+      this.imageFileRepository,
+      this.videoFileRepository,
+    ];
+
+    for (const repo of repositories) {
+      file = await repo.findOne({
+        where: { id: fileId },
+        relations: ['uploadedBy'],
+      });
+      if (file) break;
+    }
+
+    if (!file) {
+      throw new NotFoundException('File not found');
+    }
+
+    // 2. Update access metrics
+    await this.updateAccessMetrics(fileId, user?.id);
+
+    // 3. Return the file content using the file's key
+    return this.provider.download(file.key, { asStream: true });
   }
 }

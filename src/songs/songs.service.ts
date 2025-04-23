@@ -2,11 +2,11 @@
 import { Injectable, Logger, HttpStatus } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Song, SongStatus } from './entities/song.entity';
+import { Song, SongStatus, ReleaseType } from './entities/song.entity';
 import {
   ReleaseContainer,
   ReleaseContainerStatus,
-  // ReleaseContainerType,ReleaseType,
+  ReleaseContainerType,
 } from './entities/album.entity';
 import { Artist } from '../artists/entities/artist.entity';
 import { TempArtist } from '../artists/entities/temp-artist.entity';
@@ -20,6 +20,7 @@ import {
   UpdateReleaseContainerDto,
   QueryReleaseContainerDto,
   TempArtistDto,
+  DiscographyResponseDto,
 } from './dtos/song.dto';
 import { AudioFile } from 'src/storage/entities/audio-file.entity';
 import { ImageFile } from 'src/storage/entities/image-file.entity';
@@ -836,7 +837,7 @@ export class SongsService {
       }
 
       // Get file paths
-      const filePaths = await this.getFilePaths(song, user);
+      const filePaths = await this.getFilePaths(song);
 
       // Create response object with file paths
       const response = {
@@ -1061,7 +1062,7 @@ export class SongsService {
       // Get file paths for each song
       const songsWithPaths = await Promise.all(
         songs.map(async (song) => {
-          const filePaths = await this.getFilePaths(song, user);
+          const filePaths = await this.getFilePaths(song);
           return {
             ...song,
             coverArtPath: filePaths.coverArtPath,
@@ -1114,10 +1115,7 @@ export class SongsService {
   // Get File Paths
   // Added new function to get file paths for the song response
 
-  private async getFilePaths(
-    song: Song,
-    user: User,
-  ): Promise<{
+  private async getFilePaths(song: Song): Promise<{
     coverArtPath?: string;
     masterTrackPath?: string;
     mixVersions?: { fileId: string; versionLabel: string; path: string }[];
@@ -1130,53 +1128,67 @@ export class SongsService {
     musicVideo?: { url: string; thumbnailId: string; thumbnailPath: string };
   }> {
     const result: any = {};
+    const baseUrl = process.env.API_BASE_URL || 'http://localhost:3000';
 
     // Get cover art path
     if (song.coverArtId) {
-      result.coverArtPath = await this.storageService.getSignedUrl(
-        song.coverArtId,
-        user,
-      );
+      const coverArt = await this.imageFileRepository.findOne({
+        where: { id: song.coverArtId },
+      });
+      if (coverArt) {
+        result.coverArtPath = `${baseUrl}/storage/files/${coverArt.id}`;
+      }
     }
 
     // Get master track path
     if (song.masterTrackId) {
-      result.masterTrackPath = await this.storageService.getSignedUrl(
-        song.masterTrackId,
-        user,
-      );
+      const masterTrack = await this.audioFileRepository.findOne({
+        where: { id: song.masterTrackId },
+      });
+      if (masterTrack) {
+        result.masterTrackPath = `${baseUrl}/storage/files/${masterTrack.id}`;
+      }
     }
 
     // Get mix versions paths
     if (song.mixVersions?.length) {
       result.mixVersions = await Promise.all(
-        song.mixVersions.map(async (mv) => ({
-          ...mv,
-          path: await this.storageService.getSignedUrl(mv.fileId, user),
-        })),
+        song.mixVersions.map(async (mv) => {
+          const mixVersion = await this.audioFileRepository.findOne({
+            where: { id: mv.fileId },
+          });
+          return {
+            ...mv,
+            path: mixVersion ? `${baseUrl}/storage/files/${mixVersion.id}` : '',
+          };
+        }),
       );
     }
 
     // Get preview clip path
     if (song.previewClip?.fileId) {
-      result.previewClip = {
-        ...song.previewClip,
-        path: await this.storageService.getSignedUrl(
-          song.previewClip.fileId,
-          user,
-        ),
-      };
+      const previewClip = await this.audioFileRepository.findOne({
+        where: { id: song.previewClip.fileId },
+      });
+      if (previewClip) {
+        result.previewClip = {
+          ...song.previewClip,
+          path: `${baseUrl}/storage/files/${previewClip.id}`,
+        };
+      }
     }
 
     // Get music video thumbnail path
     if (song.musicVideo?.thumbnailId) {
-      result.musicVideo = {
-        ...song.musicVideo,
-        thumbnailPath: await this.storageService.getSignedUrl(
-          song.musicVideo.thumbnailId,
-          user,
-        ),
-      };
+      const thumbnail = await this.imageFileRepository.findOne({
+        where: { id: song.musicVideo.thumbnailId },
+      });
+      if (thumbnail) {
+        result.musicVideo = {
+          ...song.musicVideo,
+          thumbnailPath: `${baseUrl}/storage/files/${thumbnail.id}`,
+        };
+      }
     }
 
     return result;
@@ -1230,7 +1242,7 @@ export class SongsService {
       // Get file paths for each song
       const songsWithPaths = await Promise.all(
         songs.map(async (song) => {
-          const filePaths = await this.getFilePaths(song, user);
+          const filePaths = await this.getFilePaths(song);
           return {
             ...song,
             coverArtPath: filePaths.coverArtPath,
@@ -1329,6 +1341,213 @@ export class SongsService {
       return {
         statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
         message: 'Failed to delete release container',
+      };
+    }
+  }
+
+  async getArtistDiscography(
+    artistId: string,
+    user: User,
+  ): Promise<ApiResponse<DiscographyResponseDto>> {
+    try {
+      // First verify the artist exists
+      const artist = await this.artistRepository.findOne({
+        where: { id: artistId },
+      });
+
+      if (!artist) {
+        return {
+          statusCode: HttpStatus.NOT_FOUND,
+          message: 'Artist not found',
+        };
+      }
+
+      // Get singles (only those not part of any release container)
+      const singles = await this.songRepository
+        .createQueryBuilder('song')
+        .leftJoinAndSelect('song.primaryArtist', 'primaryArtist')
+        .leftJoinAndSelect('song.featuredPlatformArtists', 'featuredArtists')
+        .leftJoinAndSelect('song.featuredTempArtists', 'tempArtists')
+        .leftJoinAndSelect('song.releaseContainer', 'releaseContainer')
+        .where('primaryArtist.id = :artistId', { artistId })
+        .andWhere('song.releaseType = :releaseType', {
+          releaseType: ReleaseType.SINGLE,
+        })
+        .andWhere('song.releaseContainerId IS NULL')
+        .orderBy('song.proposedReleaseDate', 'DESC')
+        .getMany();
+
+      // Get albums and EPs
+      const releaseContainers = await this.releaseContainerRepository
+        .createQueryBuilder('container')
+        .leftJoinAndSelect('container.primaryArtist', 'primaryArtist')
+        .leftJoinAndSelect('container.tracks', 'tracks')
+        .leftJoinAndSelect(
+          'tracks.featuredPlatformArtists',
+          'trackFeaturedArtists',
+        )
+        .leftJoinAndSelect('tracks.featuredTempArtists', 'trackTempArtists')
+        .where('primaryArtist.id = :artistId', { artistId })
+        .orderBy('container.proposedReleaseDate', 'DESC')
+        .getMany();
+
+      // Separate albums and EPs
+      const albums = releaseContainers.filter(
+        (container) => container.type === ReleaseContainerType.ALBUM,
+      );
+      const eps = releaseContainers.filter(
+        (container) => container.type === ReleaseContainerType.EP,
+      );
+
+      // Get complete song objects with file paths for singles
+      const singlesWithUrls = await Promise.all(
+        singles.map(async (song) => {
+          const filePaths = await this.getFilePaths(song);
+          return {
+            ...song,
+            coverArtPath: filePaths.coverArtPath,
+            masterTrackPath: filePaths.masterTrackPath,
+            mixVersions: filePaths.mixVersions?.map((mix) => ({
+              versionLabel: mix.versionLabel,
+              fileId: mix.fileId,
+              path: mix.path,
+            })),
+            previewClip: filePaths.previewClip
+              ? {
+                  fileId: filePaths.previewClip.fileId,
+                  startTime: filePaths.previewClip.startTime,
+                  endTime: filePaths.previewClip.endTime,
+                  path: filePaths.previewClip.path,
+                }
+              : undefined,
+            musicVideo: filePaths.musicVideo
+              ? {
+                  url: filePaths.musicVideo.url,
+                  thumbnailId: filePaths.musicVideo.thumbnailId,
+                  thumbnailPath: filePaths.musicVideo.thumbnailPath,
+                }
+              : undefined,
+          };
+        }),
+      );
+
+      // Get complete song objects with file paths for albums and EPs
+      const albumsWithUrls = await Promise.all(
+        albums.map(async (album) => {
+          // Get complete song objects with file paths for each track
+          const tracksWithUrls = await Promise.all(
+            album.tracks.map(async (track) => {
+              const trackFilePaths = await this.getFilePaths(track);
+              return {
+                ...track,
+                coverArtPath: trackFilePaths.coverArtPath,
+                masterTrackPath: trackFilePaths.masterTrackPath,
+                mixVersions: trackFilePaths.mixVersions?.map((mix) => ({
+                  versionLabel: mix.versionLabel,
+                  fileId: mix.fileId,
+                  path: mix.path,
+                })),
+                previewClip: trackFilePaths.previewClip
+                  ? {
+                      fileId: trackFilePaths.previewClip.fileId,
+                      startTime: trackFilePaths.previewClip.startTime,
+                      endTime: trackFilePaths.previewClip.endTime,
+                      path: trackFilePaths.previewClip.path,
+                    }
+                  : undefined,
+                musicVideo: trackFilePaths.musicVideo
+                  ? {
+                      url: trackFilePaths.musicVideo.url,
+                      thumbnailId: trackFilePaths.musicVideo.thumbnailId,
+                      thumbnailPath: trackFilePaths.musicVideo.thumbnailPath,
+                    }
+                  : undefined,
+              };
+            }),
+          );
+
+          return {
+            id: album.id,
+            title: album.title,
+            type: album.type,
+            coverArtPath: album.coverArtId, // We'll get the actual path in the frontend
+            releaseDate: album.proposedReleaseDate,
+            status: album.status,
+            totalTracks: album.totalTracks,
+            tracks: tracksWithUrls,
+          };
+        }),
+      );
+
+      const epsWithUrls = await Promise.all(
+        eps.map(async (ep) => {
+          // Get complete song objects with file paths for each track
+          const tracksWithUrls = await Promise.all(
+            ep.tracks.map(async (track) => {
+              const trackFilePaths = await this.getFilePaths(track);
+              return {
+                ...track,
+                coverArtPath: trackFilePaths.coverArtPath,
+                masterTrackPath: trackFilePaths.masterTrackPath,
+                mixVersions: trackFilePaths.mixVersions?.map((mix) => ({
+                  versionLabel: mix.versionLabel,
+                  fileId: mix.fileId,
+                  path: mix.path,
+                })),
+                previewClip: trackFilePaths.previewClip
+                  ? {
+                      fileId: trackFilePaths.previewClip.fileId,
+                      startTime: trackFilePaths.previewClip.startTime,
+                      endTime: trackFilePaths.previewClip.endTime,
+                      path: trackFilePaths.previewClip.path,
+                    }
+                  : undefined,
+                musicVideo: trackFilePaths.musicVideo
+                  ? {
+                      url: trackFilePaths.musicVideo.url,
+                      thumbnailId: trackFilePaths.musicVideo.thumbnailId,
+                      thumbnailPath: trackFilePaths.musicVideo.thumbnailPath,
+                    }
+                  : undefined,
+              };
+            }),
+          );
+
+          return {
+            id: ep.id,
+            title: ep.title,
+            type: ep.type,
+            coverArtPath: ep.coverArtId, // We'll get the actual path in the frontend
+            releaseDate: ep.proposedReleaseDate,
+            status: ep.status,
+            totalTracks: ep.totalTracks,
+            tracks: tracksWithUrls,
+          };
+        }),
+      );
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Artist discography retrieved successfully',
+        data: {
+          singles: singlesWithUrls,
+          albums: albumsWithUrls,
+          eps: epsWithUrls,
+        },
+      };
+    } catch (error) {
+      this.logger.error(
+        `Failed to get artist discography - Artist ID: ${artistId}`,
+        {
+          error: error.message,
+          stackTrace: error.stack,
+          userId: user.id,
+        },
+      );
+
+      return {
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: 'Failed to retrieve artist discography',
       };
     }
   }

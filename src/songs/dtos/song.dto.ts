@@ -510,8 +510,7 @@ export class TempArtistDto {
   youtubeUrl?: string;
 }
 
-// Extra added code from Google Gemini
-// DTO for returning song details along with generated file URLs
+// DTO for returning song details along with generated file paths
 export class SongWithUrlsDto {
   id: string;
   title: string;
@@ -538,21 +537,52 @@ export class SongWithUrlsDto {
   updatedAt: Date;
   trackNumber: number | null;
 
-  // Fields replacing IDs with URLs
-  coverArtUrl: string | null;
-  masterTrackUrl: string | null;
-  mixVersionsUrls?: { versionLabel: string; fileUrl: string | null }[];
-  previewClipUrl?: {
-    fileUrl: string | null;
+  // Fields with file paths
+  coverArtPath: string;
+  masterTrackPath: string;
+  mixVersions?: { versionLabel: string; fileId: string; path: string }[];
+  previewClip?: {
+    fileId: string;
     startTime: number;
     endTime: number;
+    path: string;
   };
-  musicVideoUrls?: { url: string; thumbnailUrl?: string | null };
+  musicVideo?: {
+    url: string;
+    thumbnailId?: string;
+    path?: string;
+  };
 
-  // Related entities (adjust details as needed for API response)
+  // Related entities
   primaryArtist: Artist;
   featuredPlatformArtists?: Artist[];
   featuredTempArtists?: TempArtist[];
   releaseContainer?: ReleaseContainer;
+}
+
+export class DiscographyResponseDto {
+  singles: SongWithUrlsDto[];
+
+  albums: {
+    id: string;
+    title: string;
+    type: ReleaseContainerType;
+    coverArtPath: string;
+    releaseDate: Date;
+    status: ReleaseContainerStatus;
+    totalTracks: number;
+    tracks: SongWithUrlsDto[];
+  }[];
+
+  eps: {
+    id: string;
+    title: string;
+    type: ReleaseContainerType;
+    coverArtPath: string;
+    releaseDate: Date;
+    status: ReleaseContainerStatus;
+    totalTracks: number;
+    tracks: SongWithUrlsDto[];
+  }[];
 }
 // End of Extra added code from Google Gemini
