@@ -66,7 +66,7 @@ import { StorageService } from './services/storage.service';
 import { FileValidationService } from './services/file-validation.service';
 import { S3StorageProvider } from './providers/s3-storage.provider';
 import { LocalStorageProvider } from './providers/local-storage.provider';
-import { StorageController } from './storage.controller';
+import { StorageController, PublicStorageController } from './storage.controller';
 import { multerOptions, MULTER_CONFIG_TOKEN } from './config/multer.config';
 import { FileBase } from './entities/file-base.entity';
 import { AudioFile } from './entities/audio-file.entity';
@@ -93,7 +93,7 @@ import { FileChunk } from './entities/file-chunk.entity';
       inject: [ConfigService],
     }),
   ],
-  controllers: [StorageController],
+  controllers: [StorageController, PublicStorageController],
   providers: [
     StorageService,
     FileValidationService,

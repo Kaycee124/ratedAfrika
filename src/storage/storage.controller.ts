@@ -144,6 +144,60 @@ import { FileBase } from './entities/file-base.entity';
 import { Response } from 'express';
 import { Logger } from '@nestjs/common';
 import { Readable } from 'stream';
+import { Throttle } from '@nestjs/throttler';
+
+// Create a separate controller for public file access
+@ApiTags('public-storage')
+@Controller('storage')
+export class PublicStorageController {
+  private readonly logger = new Logger(PublicStorageController.name);
+
+  constructor(private readonly storageService: StorageService) {}
+
+  @Get('files/:fileId')
+  @Throttle({ default: { limit: 20, ttl: 60000 } }) // Rate limit: 60 requests per minute
+  @ApiOperation({ summary: 'Get file content (public)' })
+  @ApiParam({ name: 'fileId', description: 'File ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'File content retrieved successfully',
+  })
+  @ApiResponse({ status: 404, description: 'File not found' })
+  async getPublicFile(@Param('fileId') fileId: string, @Res() res: Response) {
+    try {
+      const file = await this.storageService.getFile(fileId);
+      if (!file) {
+        throw new NotFoundException('File not found');
+      }
+
+      // Get file metadata for headers
+      const fileMetadata = await this.storageService.getFileMetadata(
+        fileId,
+        null,
+      );
+      if (!fileMetadata) {
+        throw new NotFoundException('File metadata not found');
+      }
+
+      // Set appropriate headers
+      res.setHeader('Content-Type', fileMetadata.mimeType);
+      res.setHeader(
+        'Content-Disposition',
+        `inline; filename="${fileMetadata.filename}"`,
+      );
+
+      // Stream the file
+      if (file instanceof Readable) {
+        file.pipe(res);
+      } else {
+        res.send(file);
+      }
+    } catch (error) {
+      this.logger.error(`Failed to get file: ${error.message}`, error.stack);
+      throw error;
+    }
+  }
+}
 
 @ApiTags('storage')
 @Controller('storage')
@@ -283,49 +337,6 @@ export class StorageController {
       throw new InternalServerErrorException(
         `Failed to generate signed URL: ${error.message}`,
       );
-    }
-  }
-
-  @Get('files/:fileId')
-  @ApiOperation({ summary: 'Get file content' })
-  @ApiParam({ name: 'fileId', description: 'File ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'File content retrieved successfully',
-  })
-  @ApiResponse({ status: 404, description: 'File not found' })
-  async getFile(
-    @Param('fileId') fileId: string,
-    @Res() res: Response,
-  ) {
-    try {
-      const file = await this.storageService.getFile(fileId);
-      if (!file) {
-        throw new NotFoundException('File not found');
-      }
-
-      // Get file metadata for headers
-      const fileMetadata = await this.storageService.getFileMetadata(fileId, null);
-      if (!fileMetadata) {
-        throw new NotFoundException('File metadata not found');
-      }
-
-      // Set appropriate headers
-      res.setHeader('Content-Type', fileMetadata.mimeType);
-      res.setHeader(
-        'Content-Disposition',
-        `inline; filename="${fileMetadata.filename}"`,
-      );
-
-      // Stream the file
-      if (file instanceof Readable) {
-        file.pipe(res);
-      } else {
-        res.send(file);
-      }
-    } catch (error) {
-      this.logger.error(`Failed to get file: ${error.message}`, error.stack);
-      throw error;
     }
   }
 
