@@ -1103,10 +1103,11 @@ export class SongsService {
 
     // Get cover art path
     if (container.coverArtId) {
-      result.coverArtPath = await this.storageService.getSignedUrl(
+      const signedUrlResult = await this.storageService.getSignedUrl(
         container.coverArtId,
         user,
       );
+      result.coverArtPath = signedUrlResult.data;
     }
 
     return result;
@@ -1434,6 +1435,10 @@ export class SongsService {
       // Get complete song objects with file paths for albums and EPs
       const albumsWithUrls = await Promise.all(
         albums.map(async (album) => {
+          const filePaths = await this.getReleaseContainerFilePaths(
+            album,
+            user,
+          );
           // Get complete song objects with file paths for each track
           const tracksWithUrls = await Promise.all(
             album.tracks.map(async (track) => {
@@ -1470,7 +1475,7 @@ export class SongsService {
             id: album.id,
             title: album.title,
             type: album.type,
-            coverArtPath: album.coverArtId, // We'll get the actual path in the frontend
+            coverArtPath: filePaths.coverArtPath,
             releaseDate: album.proposedReleaseDate,
             status: album.status,
             totalTracks: album.totalTracks,
@@ -1481,6 +1486,7 @@ export class SongsService {
 
       const epsWithUrls = await Promise.all(
         eps.map(async (ep) => {
+          const filePaths = await this.getReleaseContainerFilePaths(ep, user);
           // Get complete song objects with file paths for each track
           const tracksWithUrls = await Promise.all(
             ep.tracks.map(async (track) => {
@@ -1517,7 +1523,7 @@ export class SongsService {
             id: ep.id,
             title: ep.title,
             type: ep.type,
-            coverArtPath: ep.coverArtId, // We'll get the actual path in the frontend
+            coverArtPath: filePaths.coverArtPath,
             releaseDate: ep.proposedReleaseDate,
             status: ep.status,
             totalTracks: ep.totalTracks,
