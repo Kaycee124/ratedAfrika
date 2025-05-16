@@ -26,6 +26,7 @@ import { AudioFile } from 'src/storage/entities/audio-file.entity';
 import { ImageFile } from 'src/storage/entities/image-file.entity';
 import { VideoFile } from 'src/storage/entities/video-file.entity';
 import { StorageService } from 'src/storage/services/storage.service';
+import { SplitSheetService } from 'src/collaborators/splitsheet.service';
 
 interface ApiResponse<T = any> {
   statusCode: number;
@@ -64,6 +65,7 @@ export class SongsService {
     @InjectRepository(VideoFile)
     private readonly videoFileRepository: Repository<VideoFile>,
     private readonly storageService: StorageService,
+    private readonly splitSheetService: SplitSheetService,
   ) {}
 
   private async checkFileOwnershipOrExistence(
@@ -839,7 +841,12 @@ export class SongsService {
       // Get file paths
       const filePaths = await this.getFilePaths(song);
 
-      // Create response object with file paths
+      // Get split sheet information if available
+      const splitSheetInfo = await this.splitSheetService.getSplitSheetBySongId(
+        song.id,
+      );
+
+      // Create response object with file paths and split sheet info
       const response = {
         ...song,
         coverArtPath: filePaths.coverArtPath,
@@ -847,6 +854,10 @@ export class SongsService {
         mixVersions: filePaths.mixVersions,
         previewClip: filePaths.previewClip,
         musicVideo: filePaths.musicVideo,
+        ...(splitSheetInfo && {
+          splitSheetId: splitSheetInfo.splitSheetId,
+          splitSheet: splitSheetInfo.splitSheet,
+        }),
       };
 
       return {
@@ -1059,10 +1070,15 @@ export class SongsService {
         .where('song.uploadedById = :userId', { userId: user.id })
         .getMany();
 
-      // Get file paths for each song
+      // Get file paths and split sheet info for each song
       const songsWithPaths = await Promise.all(
         songs.map(async (song) => {
           const filePaths = await this.getFilePaths(song);
+
+          // Get split sheet information if available
+          const splitSheetInfo =
+            await this.splitSheetService.getSplitSheetBySongId(song.id);
+
           return {
             ...song,
             coverArtPath: filePaths.coverArtPath,
@@ -1070,6 +1086,10 @@ export class SongsService {
             mixVersions: filePaths.mixVersions,
             previewClip: filePaths.previewClip,
             musicVideo: filePaths.musicVideo,
+            ...(splitSheetInfo && {
+              splitSheetId: splitSheetInfo.splitSheetId,
+              splitSheet: splitSheetInfo.splitSheet,
+            }),
           };
         }),
       );
@@ -1080,7 +1100,7 @@ export class SongsService {
         data: songsWithPaths,
       };
     } catch (error) {
-      this.logger.error(`Failed to get user songs - User ID: ${user.id}`, {
+      this.logger.error('Failed to get user songs', {
         error: error.message,
         stackTrace: error.stack,
         userId: user.id,
@@ -1404,6 +1424,10 @@ export class SongsService {
       const singlesWithUrls = await Promise.all(
         singles.map(async (song) => {
           const filePaths = await this.getFilePaths(song);
+          // Get split sheet information if available
+          const splitSheetInfo =
+            await this.splitSheetService.getSplitSheetBySongId(song.id);
+
           return {
             ...song,
             coverArtPath: filePaths.coverArtPath,
@@ -1428,6 +1452,10 @@ export class SongsService {
                   thumbnailPath: filePaths.musicVideo.thumbnailPath,
                 }
               : undefined,
+            ...(splitSheetInfo && {
+              splitSheetId: splitSheetInfo.splitSheetId,
+              splitSheet: splitSheetInfo.splitSheet,
+            }),
           };
         }),
       );
@@ -1443,6 +1471,10 @@ export class SongsService {
           const tracksWithUrls = await Promise.all(
             album.tracks.map(async (track) => {
               const trackFilePaths = await this.getFilePaths(track);
+              // Get split sheet information if available
+              const splitSheetInfo =
+                await this.splitSheetService.getSplitSheetBySongId(track.id);
+
               return {
                 ...track,
                 coverArtPath: trackFilePaths.coverArtPath,
@@ -1467,6 +1499,10 @@ export class SongsService {
                       thumbnailPath: trackFilePaths.musicVideo.thumbnailPath,
                     }
                   : undefined,
+                ...(splitSheetInfo && {
+                  splitSheetId: splitSheetInfo.splitSheetId,
+                  splitSheet: splitSheetInfo.splitSheet,
+                }),
               };
             }),
           );
@@ -1491,6 +1527,10 @@ export class SongsService {
           const tracksWithUrls = await Promise.all(
             ep.tracks.map(async (track) => {
               const trackFilePaths = await this.getFilePaths(track);
+              // Get split sheet information if available
+              const splitSheetInfo =
+                await this.splitSheetService.getSplitSheetBySongId(track.id);
+
               return {
                 ...track,
                 coverArtPath: trackFilePaths.coverArtPath,
@@ -1515,6 +1555,10 @@ export class SongsService {
                       thumbnailPath: trackFilePaths.musicVideo.thumbnailPath,
                     }
                   : undefined,
+                ...(splitSheetInfo && {
+                  splitSheetId: splitSheetInfo.splitSheetId,
+                  splitSheet: splitSheetInfo.splitSheet,
+                }),
               };
             }),
           );

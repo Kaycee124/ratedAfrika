@@ -5,21 +5,18 @@ import { CollaboratorController } from './collaborators.controller';
 import { CollaboratorService } from './collaborators.service';
 import { Collaborator } from './entities/collaborator.entity';
 import { AuthModule } from '../auth/auth.module';
-import { SongsModule } from '../songs/songs.module'; // Need this for SongOwnerGuard
-import { SplitSheetService } from './splitsheet.service';
 import { SplitSheetController } from './splitsheet.controller';
+import { SplitSheetModule } from './splitsheet.module';
+import { Song } from '../songs/entities/song.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Collaborator]),
+    TypeOrmModule.forFeature([Collaborator, Song]),
     AuthModule, // Global module for auth
-    SongsModule, // For SongOwnerGuard and Song entity
+    SplitSheetModule, // Import the SplitSheetModule
   ],
-  providers: [CollaboratorService, SplitSheetService],
+  providers: [CollaboratorService],
   controllers: [CollaboratorController, SplitSheetController],
-  exports: [
-    CollaboratorService,
-    // SplitSheetService
-  ],
+  exports: [CollaboratorService],
 })
 export class CollaboratorsModule {}

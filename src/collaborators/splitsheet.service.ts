@@ -904,5 +904,44 @@ export class SplitSheetService {
       };
     }
   }
+
+  /**
+   * Gets the split sheet associated with a song, if it exists
+   * @param songId The ID of the song
+   * @returns The split sheet information or null if none exists
+   */
+  async getSplitSheetBySongId(songId: string): Promise<{
+    splitSheetId: string;
+    splitSheet: SplitSheet & {
+      entries: SplitSheetEntry[];
+    };
+  } | null> {
+    try {
+      // Find the split sheet for the song
+      const splitSheet = await this.splitSheetRepository.findOne({
+        where: { song: { id: songId } },
+        relations: ['entries'],
+      });
+
+      if (!splitSheet) {
+        return null;
+      }
+
+      // Return the split sheet with its entries
+      return {
+        splitSheetId: splitSheet.id,
+        splitSheet: {
+          ...splitSheet,
+          entries: splitSheet.entries,
+        },
+      };
+    } catch (error) {
+      this.logError('Error retrieving split sheet by song ID', {
+        songId,
+        error: error.message,
+      });
+      return null;
+    }
+  }
 }
 /****************************END OF ADD NEW CODE LIST */
