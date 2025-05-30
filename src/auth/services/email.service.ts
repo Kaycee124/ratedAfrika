@@ -159,4 +159,76 @@ export class EmailService {
       );
     }
   }
+
+  // Send notification when a user is removed from a split sheet
+  async sendSplitRemovalNotification(
+    email: string,
+    recipientName: string,
+    songTitle: string,
+    oldPercentage: number,
+  ): Promise<void> {
+    try {
+      await this.mailerService.sendMail({
+        to: email,
+        subject: 'Split Sheet Entry Removed',
+        template: 'split-removal-notification',
+        context: {
+          recipientName,
+          songTitle,
+          oldPercentage,
+        },
+      });
+
+      this.logger.log(
+        `Split removal notification sent successfully to ${email} for song "${songTitle}"`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to send split removal notification to ${email}`,
+        error.stack,
+      );
+      throw new InternalServerErrorException(
+        'Failed to send split removal notification email.',
+      );
+    }
+  }
+
+  // Send notification when a split sheet entry is updated
+  async sendSplitUpdateNotification(
+    email: string,
+    recipientName: string,
+    songTitle: string,
+    oldPercentage: number,
+    newPercentage: number,
+    claimLink: string,
+    claimToken: string,
+  ): Promise<void> {
+    try {
+      await this.mailerService.sendMail({
+        to: email,
+        subject: 'Split Sheet Entry Updated',
+        template: 'split-update-notification',
+        context: {
+          recipientName,
+          songTitle,
+          oldPercentage,
+          newPercentage,
+          claimLink,
+          claimToken,
+        },
+      });
+
+      this.logger.log(
+        `Split update notification sent successfully to ${email} for song "${songTitle}"`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to send split update notification to ${email}`,
+        error.stack,
+      );
+      throw new InternalServerErrorException(
+        'Failed to send split update notification email.',
+      );
+    }
+  }
 }

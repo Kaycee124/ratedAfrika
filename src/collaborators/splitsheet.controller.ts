@@ -21,7 +21,12 @@ import {
   ClaimSplitEntryDto,
 } from './dto/collaborator.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt/jwt.guard';
-import { ApiTags } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiParam,
+  ApiResponse as SwaggerApiResponse,
+} from '@nestjs/swagger';
 import { SplitSheet } from './entities/splitsheet.entity';
 import { SplitSheetEntry } from './entities/splitsheetEntry.entity';
 
@@ -161,6 +166,76 @@ export class SplitSheetController {
             error.response?.message || error.message || 'An error occurred',
           timestamp: new Date().toISOString(),
           path: `/split-sheets/${id}/entries`,
+        },
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Get('song/:songId')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Get split sheet by song ID' })
+  @ApiParam({ name: 'songId', description: 'Song ID' })
+  @SwaggerApiResponse({
+    status: 200,
+    description: 'Split sheet retrieved successfully',
+  })
+  @SwaggerApiResponse({ status: 404, description: 'Split sheet not found' })
+  async getSplitSheetBySongId(
+    @Param('songId', ParseUUIDPipe) songId: string,
+  ): Promise<ApiResponse<any>> {
+    try {
+      const result = await this.splitSheetService.getSplitSheetBySongId(songId);
+
+      if (!result) {
+        return {
+          statusCode: HttpStatus.NOT_FOUND,
+          message: 'No split sheet found for this song',
+          data: null,
+        };
+      }
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Split sheet retrieved successfully',
+        data: result,
+      };
+    } catch (error) {
+      throw new HttpException(
+        {
+          statusCode: error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+          message:
+            error.response?.message || error.message || 'An error occurred',
+          timestamp: new Date().toISOString(),
+          path: `/split-sheets/song/${songId}`,
+        },
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Get('song/:songId/history')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Get complete splitsheet history for a song' })
+  @ApiParam({ name: 'songId', description: 'Song ID' })
+  @SwaggerApiResponse({
+    status: 200,
+    description: 'Splitsheet history retrieved successfully',
+  })
+  @SwaggerApiResponse({ status: 404, description: 'Song not found' })
+  async getSplitSheetHistory(
+    @Param('songId', ParseUUIDPipe) songId: string,
+  ): Promise<ApiResponse<any>> {
+    try {
+      return await this.splitSheetService.getSplitSheetHistory(songId);
+    } catch (error) {
+      throw new HttpException(
+        {
+          statusCode: error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+          message:
+            error.response?.message || error.message || 'An error occurred',
+          timestamp: new Date().toISOString(),
+          path: `/split-sheets/song/${songId}/history`,
         },
         error.status || HttpStatus.INTERNAL_SERVER_ERROR,
       );

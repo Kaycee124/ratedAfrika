@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Split Sheet Entry Updated</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      color: #333333;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background-color: #ffffff;
+      padding: 20px;
+      border-radius: 5px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .header {
+      background-color: #3498db;
+      color: white;
+      padding: 20px;
+      border-radius: 5px 5px 0 0;
+      text-align: center;
+    }
+    .content {
+      padding: 20px;
+    }
+    .percentage-change {
+      background-color: #f7f9fc;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      padding: 15px;
+      margin: 20px 0;
+    }
+    .percentage-row {
+      display: flex;
+      justify-content: space-between;
+      margin: 10px 0;
+    }
+    .old-percentage {
+      color: #e74c3c;
+      text-decoration: line-through;
+    }
+    .new-percentage {
+      color: #27ae60;
+      font-weight: bold;
+    }
+    .claim-button {
+      background-color: #27ae60;
+      color: white;
+      padding: 15px 30px;
+      text-decoration: none;
+      border-radius: 5px;
+      display: inline-block;
+      margin: 20px 0;
+      text-align: center;
+    }
+    .footer {
+      margin-top: 30px;
+      font-size: 14px;
+      color: #7f8c8d;
+      text-align: center;
+      border-top: 1px solid #eee;
+      padding-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h2>Split Sheet Entry Updated</h2>
+    </div>
+    
+    <div class="content">
+      <p>Hello {{recipientName}},</p>
+      
+      <p>The split sheet for the song <strong>"{{songTitle}}"</strong> has been updated by the song owner, and your entry has changed.</p>
+      
+      <div class="percentage-change">
+        <h3>Percentage Change:</h3>
+        <div class="percentage-row">
+          <span>Previous allocation: <span class="old-percentage">{{oldPercentage}}%</span></span>
+        </div>
+        <div class="percentage-row">
+          <span>New allocation: <span class="new-percentage">{{newPercentage}}%</span></span>
+        </div>
+      </div>
+      
+      <p><strong>Important:</strong> Due to this update, you will need to claim your split again with the new percentage. Your previous claim has been invalidated to reflect the updated terms.</p>
+      
+      <div style="text-align: center;">
+        <a href="{{claimLink}}" class="claim-button">Claim Your Updated Split</a>
+      </div>
+      
+      <p><strong>What you need to do:</strong></p>
+      <ul>
+        <li>Click the button above to review and claim your updated split</li>
+        <li>Review the new percentage allocation</li>
+        <li>Confirm your payout method is still current</li>
+        <li>Complete the claim process to activate your updated split</li>
+      </ul>
+      
+      <p>Your claim token is: <strong>{{claimToken}}</strong></p>
+      
+      <p>This link will take you to a page where you can review the updated split details and securely connect your payment information.</p>
+      
+      <p>If you have any questions about these changes or need assistance, please don't hesitate to contact us at <a href="mailto:support@ratedafrika.com">support@ratedafrika.com</a>.</p>
+    </div>
+    
+    <div class="footer">
+      <p>Thank you,<br/>The ratedAfrika Team</p>
+      <p>Need help? Contact us at <a href="mailto:support@ratedafrika.com">support@ratedafrika.com</a></p>
+    </div>
+  </div>
+</body>
+</html> 

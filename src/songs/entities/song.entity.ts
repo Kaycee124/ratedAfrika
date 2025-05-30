@@ -171,8 +171,17 @@ export class Song {
   // @OneToMany('SongCollaborator', 'song')
   // songCollaborators: SongCollaborator[];
 
+  // Current active splitsheet (for clean queries)
+  @Column({ type: 'uuid', nullable: true })
+  currentSplitSheetId: string;
+
+  @ManyToOne('SplitSheet', { nullable: true })
+  @JoinColumn({ name: 'currentSplitSheetId' })
+  currentSplitSheet: SplitSheet;
+
+  // All splitsheets for this song (for history/audit)
   @OneToMany('SplitSheet', 'song')
-  splits: SplitSheet;
+  splitsHistory: SplitSheet[];
 
   // Add these new fields to your existing Song entity
   @Column({ nullable: true })

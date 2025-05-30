@@ -1244,6 +1244,8 @@ export class SongsService {
         .leftJoinAndSelect('song.featuredPlatformArtists', 'featuredArtists')
         .leftJoinAndSelect('song.featuredTempArtists', 'tempArtists')
         .leftJoinAndSelect('song.releaseContainer', 'releaseContainer')
+        .leftJoinAndSelect('song.splits', 'splits')
+        .leftJoinAndSelect('splits.entries', 'splitEntries')
         .where('primaryArtist.id = :artistId', { artistId })
         .getMany();
 
@@ -1264,6 +1266,9 @@ export class SongsService {
       const songsWithPaths = await Promise.all(
         songs.map(async (song) => {
           const filePaths = await this.getFilePaths(song);
+          // Get split sheet information if available
+          const splitSheetInfo = await this.splitSheetService.getSplitSheetBySongId(song.id);
+
           return {
             ...song,
             coverArtPath: filePaths.coverArtPath,
@@ -1271,6 +1276,10 @@ export class SongsService {
             mixVersions: filePaths.mixVersions,
             previewClip: filePaths.previewClip,
             musicVideo: filePaths.musicVideo,
+            ...(splitSheetInfo && {
+              splitSheetId: splitSheetInfo.splitSheetId,
+              splitSheet: splitSheetInfo.splitSheet,
+            }),
           };
         }),
       );

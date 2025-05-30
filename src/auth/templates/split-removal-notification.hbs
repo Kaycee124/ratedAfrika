@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Split Sheet Entry Removed</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      color: #333333;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background-color: #ffffff;
+      padding: 20px;
+      border-radius: 5px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .header {
+      background-color: #e74c3c;
+      color: white;
+      padding: 20px;
+      border-radius: 5px 5px 0 0;
+      text-align: center;
+    }
+    .content {
+      padding: 20px;
+    }
+    .percentage-box {
+      background-color: #f7f9fc;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      padding: 15px;
+      margin: 20px 0;
+      text-align: center;
+    }
+    .footer {
+      margin-top: 30px;
+      font-size: 14px;
+      color: #7f8c8d;
+      text-align: center;
+      border-top: 1px solid #eee;
+      padding-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h2>Split Sheet Entry Removed</h2>
+    </div>
+    
+    <div class="content">
+      <p>Hello {{recipientName}},</p>
+      
+      <p>We're writing to inform you that your entry in the split sheet for the song <strong>"{{songTitle}}"</strong> has been removed by the song owner.</p>
+      
+      <div class="percentage-box">
+        <p><strong>Your previous allocation:</strong> {{oldPercentage}}%</p>
+      </div>
+      
+      <p>This means you will no longer receive royalty payments for this song. If you had an active claim on this split, it has been invalidated.</p>
+      
+      <p><strong>What this means:</strong></p>
+      <ul>
+        <li>You are no longer entitled to royalties from this song</li>
+        <li>Any pending or active splits for this song have been removed</li>
+        <li>This change was made by the song owner</li>
+      </ul>
+      
+      <p>If you believe this removal was made in error or if you have any questions about this change, please contact the song owner directly or reach out to our support team.</p>
+      
+      <p>If you have any questions or need assistance, please don't hesitate to contact us at <a href="mailto:support@ratedafrika.com">support@ratedafrika.com</a>.</p>
+    </div>
+    
+    <div class="footer">
+      <p>Thank you,<br/>The ratedAfrika Team</p>
+      <p>Need help? Contact us at <a href="mailto:support@ratedafrika.com">support@ratedafrika.com</a></p>
+    </div>
+  </div>
+</body>
+</html> 

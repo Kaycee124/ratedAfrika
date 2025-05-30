@@ -5,6 +5,7 @@ import { AuthModule } from '../auth/auth.module';
 import { DatabaseModule } from 'src/core/database/database.module';
 import { StorageModule } from '../storage/storage.module';
 import { SplitSheetModule } from '../collaborators/splitsheet.module';
+import { CollaboratorsModule } from '../collaborators/collaborators.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { SplitSheetModule } from '../collaborators/splitsheet.module';
     DatabaseModule, // For database-related configurations and entity registrations
     StorageModule, // For file storage operations
     SplitSheetModule,
+    CollaboratorsModule, // For accessing collaborators
   ],
   controllers: [SongsController],
   providers: [SongsService],

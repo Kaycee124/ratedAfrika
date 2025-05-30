@@ -6,12 +6,13 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { User } from '../../users/user.entity';
-import { SplitSheet } from 'src/collaborators/entities/splitsheet.entity';
+import type { SplitSheet } from './splitsheet.entity';
 
 export enum SplitEntryStatus {
   PENDING = 'Pending',
   ACTIVE = 'Active',
   PAID = 'Paid',
+  INVALIDATED = 'Invalidated',
 }
 
 @Entity('split_sheet_entries')
@@ -19,7 +20,7 @@ export class SplitSheetEntry {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => SplitSheet, (sheet) => sheet.entries)
+  @ManyToOne('SplitSheet', (sheet: SplitSheet) => sheet.entries)
   @JoinColumn({ name: 'splitSheetId' }) // Specify the foreign key column name
   splitSheet: SplitSheet;
 
@@ -36,6 +37,9 @@ export class SplitSheetEntry {
   @Column()
   recipientEmail: string;
 
+  @Column({ nullable: true })
+  recipientName: string;
+
   @Column({ unique: true }) // Ensure claim tokens are unique
   claimToken: string;
 
@@ -48,4 +52,8 @@ export class SplitSheetEntry {
     default: SplitEntryStatus.PENDING,
   })
   status: SplitEntryStatus;
+
+  // Invalidation tracking fields
+  @Column({ nullable: true })
+  invalidatedAt?: Date;
 }
