@@ -943,10 +943,11 @@ export class SongsService {
     artistId: string,
     user: User,
   ): Promise<ApiResponse<ReleaseContainer[]>> {
+    const cleanedArtistId = artistId.trim();
     try {
       // First verify the artist exists
       const artist = await this.artistRepository.findOne({
-        where: { id: artistId },
+        where: { id: cleanedArtistId },
       });
 
       if (!artist) {
@@ -966,7 +967,7 @@ export class SongsService {
         )
         .leftJoinAndSelect('container.featuredTempArtists', 'tempArtists')
         .leftJoinAndSelect('container.tracks', 'tracks')
-        .where('primaryArtist.id = :artistId', { artistId })
+        .where('primaryArtist.id = :artistId', { artistId: cleanedArtistId })
         .getMany();
 
       // Get file paths for each container
@@ -990,7 +991,7 @@ export class SongsService {
       };
     } catch (error) {
       this.logger.error(
-        `Failed to get artist release containers - Artist ID: ${artistId}`,
+        `Failed to get artist release containers - Artist ID: ${cleanedArtistId}`,
         {
           error: error.message,
           stackTrace: error.stack,
@@ -1219,10 +1220,12 @@ export class SongsService {
     artistId: string,
     user: User,
   ): Promise<ApiResponse<Song[]>> {
+    // Remove any accidental leading/trailing whitespace or newline characters that might break UUID parsing
+    const cleanedArtistId = artistId.trim();
     try {
       // First verify the artist exists
       const artist = await this.artistRepository.findOne({
-        where: { id: artistId },
+        where: { id: cleanedArtistId },
       });
 
       if (!artist) {
@@ -1234,7 +1237,7 @@ export class SongsService {
 
       // Log the query parameters
       this.logger.debug(
-        `Searching for songs where artist ${artistId} is primary artist`,
+        `Searching for songs where artist ${cleanedArtistId} is primary artist`,
       );
 
       // Find all songs where the artist is the primary artist
@@ -1246,12 +1249,12 @@ export class SongsService {
         .leftJoinAndSelect('song.releaseContainer', 'releaseContainer')
         .leftJoinAndSelect('song.splits', 'splits')
         .leftJoinAndSelect('splits.entries', 'splitEntries')
-        .where('primaryArtist.id = :artistId', { artistId })
+        .where('primaryArtist.id = :artistId', { artistId: cleanedArtistId })
         .getMany();
 
       // Log the number of songs found
       this.logger.debug(
-        `Found ${songs.length} songs where artist ${artistId} is primary artist`,
+        `Found ${songs.length} songs where artist ${cleanedArtistId} is primary artist`,
       );
 
       if (songs.length === 0) {
@@ -1290,7 +1293,7 @@ export class SongsService {
         data: songsWithPaths,
       };
     } catch (error) {
-      this.logger.error(`Failed to get artist songs - Artist ID: ${artistId}`, {
+      this.logger.error(`Failed to get artist songs - Artist ID: ${cleanedArtistId}`, {
         error: error.message,
         stackTrace: error.stack,
         userId: user.id,
@@ -1379,10 +1382,11 @@ export class SongsService {
     artistId: string,
     user: User,
   ): Promise<ApiResponse<DiscographyResponseDto>> {
+    const cleanedArtistId = artistId.trim();
     try {
       // First verify the artist exists
       const artist = await this.artistRepository.findOne({
-        where: { id: artistId },
+        where: { id: cleanedArtistId },
       });
 
       if (!artist) {
@@ -1399,7 +1403,7 @@ export class SongsService {
         .leftJoinAndSelect('song.featuredPlatformArtists', 'featuredArtists')
         .leftJoinAndSelect('song.featuredTempArtists', 'tempArtists')
         .leftJoinAndSelect('song.releaseContainer', 'releaseContainer')
-        .where('primaryArtist.id = :artistId', { artistId })
+        .where('primaryArtist.id = :artistId', { artistId: cleanedArtistId })
         .andWhere('song.releaseType = :releaseType', {
           releaseType: ReleaseType.SINGLE,
         })
@@ -1417,7 +1421,7 @@ export class SongsService {
           'trackFeaturedArtists',
         )
         .leftJoinAndSelect('tracks.featuredTempArtists', 'trackTempArtists')
-        .where('primaryArtist.id = :artistId', { artistId })
+        .where('primaryArtist.id = :artistId', { artistId: cleanedArtistId })
         .orderBy('container.proposedReleaseDate', 'DESC')
         .getMany();
 
@@ -1596,7 +1600,7 @@ export class SongsService {
       };
     } catch (error) {
       this.logger.error(
-        `Failed to get artist discography - Artist ID: ${artistId}`,
+        `Failed to get artist discography - Artist ID: ${cleanedArtistId}`,
         {
           error: error.message,
           stackTrace: error.stack,
