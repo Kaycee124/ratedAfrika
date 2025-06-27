@@ -1247,8 +1247,8 @@ export class SongsService {
         .leftJoinAndSelect('song.featuredPlatformArtists', 'featuredArtists')
         .leftJoinAndSelect('song.featuredTempArtists', 'tempArtists')
         .leftJoinAndSelect('song.releaseContainer', 'releaseContainer')
-        .leftJoinAndSelect('song.splits', 'splits')
-        .leftJoinAndSelect('splits.entries', 'splitEntries')
+        .leftJoinAndSelect('song.splitsHistory', 'splitsHistory')
+        .leftJoinAndSelect('splitsHistory.entries', 'splitEntries')
         .where('primaryArtist.id = :artistId', { artistId: cleanedArtistId })
         .getMany();
 
