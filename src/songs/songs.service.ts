@@ -855,7 +855,7 @@ export class SongsService {
         previewClip: filePaths.previewClip,
         musicVideo: filePaths.musicVideo,
         currentSplitSheetId: splitSheetInfo?.currentSplitSheetId || null,
-        currentSplitSheet: splitSheetInfo?.currentSplitSheet || null,
+        currentSplitSheet: splitSheetInfo?.currentSplitSheet || ({} as any),
       };
 
       return {
@@ -1086,7 +1086,7 @@ export class SongsService {
             previewClip: filePaths.previewClip,
             musicVideo: filePaths.musicVideo,
             currentSplitSheetId: splitSheetInfo?.currentSplitSheetId || null,
-            currentSplitSheet: splitSheetInfo?.currentSplitSheet || null,
+            currentSplitSheet: splitSheetInfo?.currentSplitSheet || ({} as any),
           };
         }),
       );
@@ -1277,7 +1277,7 @@ export class SongsService {
             previewClip: filePaths.previewClip,
             musicVideo: filePaths.musicVideo,
             currentSplitSheetId: splitSheetInfo?.currentSplitSheetId || null,
-            currentSplitSheet: splitSheetInfo?.currentSplitSheet || null,
+            currentSplitSheet: splitSheetInfo?.currentSplitSheet || ({} as any),
           };
         }),
       );
@@ -1464,7 +1464,7 @@ export class SongsService {
                 }
               : undefined,
             currentSplitSheetId: splitSheetInfo?.currentSplitSheetId || null,
-            currentSplitSheet: splitSheetInfo?.currentSplitSheet || null,
+            currentSplitSheet: splitSheetInfo?.currentSplitSheet || ({} as any),
           };
         }),
       );
@@ -1508,8 +1508,10 @@ export class SongsService {
                       thumbnailPath: trackFilePaths.musicVideo.thumbnailPath,
                     }
                   : undefined,
-                currentSplitSheetId: splitSheetInfo?.currentSplitSheetId || null,
-                currentSplitSheet: splitSheetInfo?.currentSplitSheet || null,
+                currentSplitSheetId:
+                  splitSheetInfo?.currentSplitSheetId || null,
+                currentSplitSheet:
+                  splitSheetInfo?.currentSplitSheet || ({} as any),
               };
             }),
           );
@@ -1562,8 +1564,10 @@ export class SongsService {
                       thumbnailPath: trackFilePaths.musicVideo.thumbnailPath,
                     }
                   : undefined,
-                currentSplitSheetId: splitSheetInfo?.currentSplitSheetId || null,
-                currentSplitSheet: splitSheetInfo?.currentSplitSheet || null,
+                currentSplitSheetId:
+                  splitSheetInfo?.currentSplitSheetId || null,
+                currentSplitSheet:
+                  splitSheetInfo?.currentSplitSheet || ({} as any),
               };
             }),
           );
