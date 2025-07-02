@@ -1064,8 +1064,8 @@ export class SplitSheetService {
    * @returns The split sheet information or null if none exists
    */
   async getSplitSheetBySongId(songId: string): Promise<{
-    splitSheetId: string;
-    splitSheet: SplitSheet & {
+    currentSplitSheetId: string;
+    currentSplitSheet: SplitSheet & {
       entries: SplitSheetEntry[];
     };
   } | null> {
@@ -1082,8 +1082,8 @@ export class SplitSheetService {
 
       // Return the current active split sheet with its entries
       return {
-        splitSheetId: song.currentSplitSheet.id,
-        splitSheet: {
+        currentSplitSheetId: song.currentSplitSheet.id,
+        currentSplitSheet: {
           ...song.currentSplitSheet,
           entries: song.currentSplitSheet.entries,
         },

@@ -4,31 +4,48 @@ export class AddInvalidationFieldsToSplitSheets1710000000001
   implements MigrationInterface
 {
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // Add new status value to split_sheet_entries_status_enum
+    // 1) Safely add enum value 'Invalidated' if it doesn't exist
     await queryRunner.query(`
-            ALTER TYPE "split_sheet_entries_status_enum" 
-            ADD VALUE 'Invalidated';
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1
+          FROM pg_type t
+          JOIN pg_enum e ON t.oid = e.enumtypid
+          WHERE t.typname = 'split_sheet_entries_status_enum'
+            AND e.enumlabel = 'Invalidated'
+        ) THEN
+          ALTER TYPE "split_sheet_entries_status_enum" ADD VALUE 'Invalidated';
+        END IF;
+      END$$;
         `);
 
-    // Add invalidation tracking fields to split_sheet_entries
+    // 2) Add new columns to split_sheet_entries if they are missing
     await queryRunner.query(`
             ALTER TABLE "split_sheet_entries"
-            ADD COLUMN "invalidatedAt" TIMESTAMP,
-            ADD COLUMN "invalidatedBy" character varying,
-            ADD COLUMN "invalidationReason" character varying;
+      ADD COLUMN IF NOT EXISTS "invalidatedAt" TIMESTAMP,
+      ADD COLUMN IF NOT EXISTS "invalidatedBy" character varying,
+      ADD COLUMN IF NOT EXISTS "invalidationReason" character varying;
         `);
 
-    // Create splitsheet status enum
+    // 3) Create splitsheet status enum only if it doesn't exist
     await queryRunner.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_type WHERE typname = 'split_sheets_status_enum'
+        ) THEN
             CREATE TYPE "split_sheets_status_enum" AS ENUM ('Active', 'PaidOut', 'Archived');
+        END IF;
+      END$$;
         `);
 
-    // Add status and tracking fields to split_sheets
+    // 4) Add columns to split_sheets table if they are missing
     await queryRunner.query(`
             ALTER TABLE "split_sheets"
-            ADD COLUMN "status" "split_sheets_status_enum" NOT NULL DEFAULT 'Active',
-            ADD COLUMN "paidOutAt" TIMESTAMP,
-            ADD COLUMN "lastModifiedBy" character varying;
+      ADD COLUMN IF NOT EXISTS "status" "split_sheets_status_enum" NOT NULL DEFAULT 'Active',
+      ADD COLUMN IF NOT EXISTS "paidOutAt" TIMESTAMP,
+      ADD COLUMN IF NOT EXISTS "lastModifiedBy" character varying;
         `);
   }
 

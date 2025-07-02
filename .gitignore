@@ -64,5 +64,6 @@ uploads/*
 
 #Ignore envs in any form in the root directory
 *.env
+*.env.*
 
 Storage/*

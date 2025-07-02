@@ -19,6 +19,7 @@ import { SplitSheet } from 'src/collaborators/entities/splitsheet.entity';
 import { SplitSheetEntry } from 'src/collaborators/entities/splitsheetEntry.entity';
 import { PayoutMethod } from 'src/collaborators/entities/payment.entity';
 import * as dotenv from 'dotenv';
+const useSSL = process.env.DATABASE_SSL === 'true';
 
 // Load environment variables
 dotenv.config();
@@ -53,5 +54,6 @@ export const datasource = new DataSource({
     PayoutMethod,
   ],
   migrations: ['src/migration/*.ts'],
+  ssl: useSSL ? { rejectUnauthorized: false } : false,
   synchronize: false,
 });

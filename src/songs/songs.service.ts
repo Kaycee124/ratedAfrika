@@ -854,10 +854,8 @@ export class SongsService {
         mixVersions: filePaths.mixVersions,
         previewClip: filePaths.previewClip,
         musicVideo: filePaths.musicVideo,
-        ...(splitSheetInfo && {
-          splitSheetId: splitSheetInfo.splitSheetId,
-          splitSheet: splitSheetInfo.splitSheet,
-        }),
+        currentSplitSheetId: splitSheetInfo?.currentSplitSheetId || null,
+        currentSplitSheet: splitSheetInfo?.currentSplitSheet || null,
       };
 
       return {
@@ -1087,10 +1085,8 @@ export class SongsService {
             mixVersions: filePaths.mixVersions,
             previewClip: filePaths.previewClip,
             musicVideo: filePaths.musicVideo,
-            ...(splitSheetInfo && {
-              splitSheetId: splitSheetInfo.splitSheetId,
-              splitSheet: splitSheetInfo.splitSheet,
-            }),
+            currentSplitSheetId: splitSheetInfo?.currentSplitSheetId || null,
+            currentSplitSheet: splitSheetInfo?.currentSplitSheet || null,
           };
         }),
       );
@@ -1270,7 +1266,8 @@ export class SongsService {
         songs.map(async (song) => {
           const filePaths = await this.getFilePaths(song);
           // Get split sheet information if available
-          const splitSheetInfo = await this.splitSheetService.getSplitSheetBySongId(song.id);
+          const splitSheetInfo =
+            await this.splitSheetService.getSplitSheetBySongId(song.id);
 
           return {
             ...song,
@@ -1279,10 +1276,8 @@ export class SongsService {
             mixVersions: filePaths.mixVersions,
             previewClip: filePaths.previewClip,
             musicVideo: filePaths.musicVideo,
-            ...(splitSheetInfo && {
-              splitSheetId: splitSheetInfo.splitSheetId,
-              splitSheet: splitSheetInfo.splitSheet,
-            }),
+            currentSplitSheetId: splitSheetInfo?.currentSplitSheetId || null,
+            currentSplitSheet: splitSheetInfo?.currentSplitSheet || null,
           };
         }),
       );
@@ -1293,11 +1288,14 @@ export class SongsService {
         data: songsWithPaths,
       };
     } catch (error) {
-      this.logger.error(`Failed to get artist songs - Artist ID: ${cleanedArtistId}`, {
-        error: error.message,
-        stackTrace: error.stack,
-        userId: user.id,
-      });
+      this.logger.error(
+        `Failed to get artist songs - Artist ID: ${cleanedArtistId}`,
+        {
+          error: error.message,
+          stackTrace: error.stack,
+          userId: user.id,
+        },
+      );
 
       return {
         statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
@@ -1465,10 +1463,8 @@ export class SongsService {
                   thumbnailPath: filePaths.musicVideo.thumbnailPath,
                 }
               : undefined,
-            ...(splitSheetInfo && {
-              splitSheetId: splitSheetInfo.splitSheetId,
-              splitSheet: splitSheetInfo.splitSheet,
-            }),
+            currentSplitSheetId: splitSheetInfo?.currentSplitSheetId || null,
+            currentSplitSheet: splitSheetInfo?.currentSplitSheet || null,
           };
         }),
       );
@@ -1512,10 +1508,8 @@ export class SongsService {
                       thumbnailPath: trackFilePaths.musicVideo.thumbnailPath,
                     }
                   : undefined,
-                ...(splitSheetInfo && {
-                  splitSheetId: splitSheetInfo.splitSheetId,
-                  splitSheet: splitSheetInfo.splitSheet,
-                }),
+                currentSplitSheetId: splitSheetInfo?.currentSplitSheetId || null,
+                currentSplitSheet: splitSheetInfo?.currentSplitSheet || null,
               };
             }),
           );
@@ -1568,10 +1562,8 @@ export class SongsService {
                       thumbnailPath: trackFilePaths.musicVideo.thumbnailPath,
                     }
                   : undefined,
-                ...(splitSheetInfo && {
-                  splitSheetId: splitSheetInfo.splitSheetId,
-                  splitSheet: splitSheetInfo.splitSheet,
-                }),
+                currentSplitSheetId: splitSheetInfo?.currentSplitSheetId || null,
+                currentSplitSheet: splitSheetInfo?.currentSplitSheet || null,
               };
             }),
           );
