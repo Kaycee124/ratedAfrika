@@ -73,6 +73,7 @@ export class LyricsService {
 
       const lyrics = this.lyricsRepository.create({
         ...createLyricsDto,
+        synchronizedLyrics: createLyricsDto.synchronizedLyrics ?? [],
         createdBy: userId,
         updatedBy: userId,
       });

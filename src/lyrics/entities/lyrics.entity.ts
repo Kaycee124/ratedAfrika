@@ -21,7 +21,7 @@ export class Lyrics {
   @Column({ type: 'text' })
   basicLyrics: string;
 
-  @Column('jsonb')
+  @Column('jsonb', { default: [] })
   synchronizedLyrics: {
     timestamp: number;
     text: string;
