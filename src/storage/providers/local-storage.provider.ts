@@ -20,7 +20,7 @@ export class LocalStorageProvider implements StorageProvider {
   private readonly logger = new Logger(LocalStorageProvider.name);
 
   async initialize(config: StorageConfig): Promise<void> {
-    this.basePath = path.resolve(config.basePath || 'storage');
+    this.basePath = path.resolve(config.basePath || './uploads');
 
     try {
       await fsPromises.mkdir(this.basePath, { recursive: true });

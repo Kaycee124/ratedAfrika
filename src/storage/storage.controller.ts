@@ -138,7 +138,7 @@ import {
   ApiResponse,
 } from '@nestjs/swagger';
 import { UploadFileDto, InitiateMultipartUploadDto } from './dto/upload.dto';
-import { memoryStorage } from 'multer';
+
 import { ApiResponse as AuthApiResponse } from 'src/auth/auth.service';
 import { FileBase } from './entities/file-base.entity';
 import { Response } from 'express';
@@ -188,12 +188,52 @@ export class PublicStorageController {
 
       // Stream the file
       if (file instanceof Readable) {
+        // COMMENTED OUT: This code causes server crashes when files don't exist
+        // Problem: fs.createReadStream() emits unhandled 'error' events for missing files (ENOENT)
+        // Impact: Unhandled stream errors crash the entire Node.js process
+        // Symptom: Browser reports "CORS error" because server crash = no response headers
+        // file.pipe(res);
+
+        // FIX: Add error handling to prevent server crashes
+        file.on('error', (streamError: any) => {
+          this.logger.error(
+            `File stream error: ${streamError.message}`,
+            streamError.stack,
+          );
+
+          // Prevent duplicate responses if headers already sent
+          if (!res.headersSent) {
+            // Handle specific file system errors gracefully
+            if (streamError.code === 'ENOENT') {
+              res.status(HttpStatus.NOT_FOUND).json({
+                statusCode: HttpStatus.NOT_FOUND,
+                message: 'File not found on storage',
+              });
+            } else {
+              res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+                statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+                message: 'Error reading file',
+              });
+            }
+          }
+        });
+
+        // Safe pipe: errors are now handled, won't crash server
         file.pipe(res);
       } else {
         res.send(file);
       }
     } catch (error) {
       this.logger.error(`Failed to get file: ${error.message}`, error.stack);
+
+      // ADDED: Handle specific file not found errors gracefully instead of crashing
+      if (
+        (error as any).code === 'ENOENT' ||
+        error.message.includes('ENOENT')
+      ) {
+        throw new NotFoundException('File not found on storage');
+      }
+
       throw error;
     }
   }
@@ -210,27 +250,8 @@ export class StorageController {
 
   @Post('upload')
   @UseInterceptors(
-    FileInterceptor('file', {
-      storage: memoryStorage(),
-      limits: {
-        fileSize: 100 * 1024 * 1024, // 100MB
-      },
-      fileFilter: (req, file, cb) => {
-        const allowedTypes = [
-          'audio/mpeg',
-          'audio/wav',
-          'image/jpeg',
-          'image/png',
-          'image/gif',
-          'video/mp4',
-          'video/quicktime',
-        ];
-        if (!allowedTypes.includes(file.mimetype)) {
-          return cb(new BadRequestException('Invalid file type'), false);
-        }
-        cb(null, true);
-      },
-    }),
+    // Use MulterModule registered config (diskStorage to LOCAL_STORAGE_PATH/tmp)
+    FileInterceptor('file'),
   )
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -250,6 +271,10 @@ export class StorageController {
         metadata: {
           type: 'object',
         },
+        forceMultipart: {
+          type: 'boolean',
+          description: 'Force multipart upload regardless of file size',
+        },
       },
     },
   })
@@ -263,7 +288,42 @@ export class StorageController {
     }
 
     try {
-      return await this.storageService.uploadFile(file, req.user, {
+      //Implementing INDUSTRY STANDARD: Auto-switch to multipart for files >50MB
+      const MULTIPART_THRESHOLD = 50 * 1024 * 1024; // 50MB
+      const shouldUseMultipart =
+        (uploadFileDto as any).forceMultipart ||
+        file.size > MULTIPART_THRESHOLD;
+
+      if (shouldUseMultipart) {
+        // Redirect to multipart flow - return initiation response
+        const uploadId = await this.storageService.initiateMultipartUpload(
+          file.originalname,
+          file.size,
+          req.user,
+          {
+            type: uploadFileDto.type,
+            isPublic: uploadFileDto.isPublic,
+            metadata: {
+              ...uploadFileDto.metadata,
+              originalName: file.originalname,
+              mimeType: file.mimetype,
+              size: file.size,
+            },
+          },
+        );
+
+        return {
+          multipart: true,
+          uploadId,
+          chunkSize: 5 * 1024 * 1024, // 5MB chunks
+          totalChunks: Math.ceil(file.size / (5 * 1024 * 1024)),
+          message: 'File size exceeds 50MB. Use multipart upload endpoints.',
+          nextStep: `POST /storage/multipart/${uploadId}/part/1 with first chunk`,
+        };
+      }
+
+      // Standard single-file upload for files <=50MB
+      return await this.storageService.uploadFileFromDisk(file, req.user, {
         type: uploadFileDto.type,
         isPublic: uploadFileDto.isPublic,
         metadata: {
@@ -301,11 +361,10 @@ export class StorageController {
     }
   }
 
-  @Post('multipart/:uploadId/chunk/:chunkNumber')
+  @Post('multipart/:uploadId/part/:chunkNumber')
   @UseInterceptors(
-    FileInterceptor('chunk', {
-      storage: memoryStorage(),
-    }),
+    // FIXED: Use disk storage for chunks too, not memory
+    FileInterceptor('chunk'),
   )
   async uploadChunk(
     @Param('uploadId') uploadId: string,
@@ -317,14 +376,56 @@ export class StorageController {
     }
 
     try {
-      return await this.storageService.uploadChunk(
+      // Use uploadChunkFromDisk to stream from temp file
+      return await this.storageService.uploadChunkFromDisk(
         uploadId,
         Number(chunkNumber),
-        file.buffer,
+        file, // Pass the full file object with path
       );
     } catch (error) {
       throw new InternalServerErrorException(
         `Failed to upload chunk: ${error.message}`,
+      );
+    }
+  }
+
+  @Post('multipart/:uploadId/complete')
+  async completeMultipartUpload(
+    @Param('uploadId') uploadId: string,
+    @Body()
+    completeDto: {
+      parts: { PartNumber: number; ETag: string }[];
+      type: 'audio' | 'image' | 'video';
+      metadata?: any;
+    },
+    @Request() req,
+  ) {
+    try {
+      return await this.storageService.completeMultipartUpload(
+        uploadId,
+        completeDto.parts,
+        completeDto.type,
+        completeDto.metadata,
+        req.user,
+      );
+    } catch (error) {
+      throw new InternalServerErrorException(
+        `Failed to complete upload: ${error.message}`,
+      );
+    }
+  }
+
+  @Post('multipart/:uploadId/abort')
+  async abortMultipartUpload(
+    @Param('uploadId') uploadId: string,
+    @Request() req,
+  ) {
+    try {
+      await this.storageService.abortMultipartUpload(uploadId, req.user);
+      return { message: 'Multipart upload aborted successfully' };
+    } catch (error) {
+      throw new InternalServerErrorException(
+        `Failed to abort upload: ${error.message}`,
       );
     }
   }

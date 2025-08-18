@@ -167,11 +167,13 @@ export class StorageService {
       isPublic?: boolean;
     },
   ): Promise<FileBase> {
+    let uploadedFileKey: string | null = null;
+
     try {
       let fileEntity: FileBase;
       const repository = this.getRepositoryForType(options.type);
 
-      // Upload to storage provider
+      // STEP 1: Upload to storage provider FIRST
       const { key } = await this.provider.upload(
         file.originalname,
         file.buffer,
@@ -181,13 +183,16 @@ export class StorageService {
           metadata: options.metadata,
         },
       );
+      uploadedFileKey = key; // Track for cleanup if database fails
 
+      // STEP 2: Prepare entity with final path (single save approach)
+      const baseUrl = process.env.API_BASE_URL || 'http://localhost:3000';
       const baseProps = {
         filename: file.originalname,
         originalFilename: file.originalname,
         mimeType: file.mimetype,
         size: file.size,
-        path: key, // Store the storage key
+        path: '', // Will be set after getting ID
         bucket: process.env.STORAGE_BUCKET || 'default-bucket',
         key: key,
         uploadedBy: user,
@@ -238,19 +243,135 @@ export class StorageService {
           throw new Error(`Unsupported file type: ${options.type}`);
       }
 
-      // Save the initial entity
+      // STEP 3: Save to database (first save)
       const savedEntity = await repository.save(fileEntity);
 
-      // Generate URL with file ID
-      const baseUrl = process.env.API_BASE_URL || 'http://localhost:3000';
+      // STEP 4: Update path and save again (risky part - can fail)
       savedEntity.path = `${baseUrl}/storage/files/${savedEntity.id}`;
-
-      // Update the entity with the correct URL
       await repository.save(savedEntity);
 
       return savedEntity;
     } catch (error) {
       this.logger.error(`Failed to upload file: ${error.message}`, error.stack);
+
+      // CRITICAL FIX: Clean up uploaded file if database operation failed
+      if (uploadedFileKey) {
+        try {
+          await this.provider.delete(uploadedFileKey);
+          this.logger.warn(`Cleaned up orphaned file: ${uploadedFileKey}`);
+        } catch (deleteError) {
+          this.logger.error(
+            `Failed to clean up file ${uploadedFileKey}: ${deleteError.message}`,
+          );
+        }
+      }
+
+      throw error;
+    }
+  }
+
+  // Stream from disk (multer saved to LOCAL_STORAGE_PATH/tmp) to the storage provider
+  async uploadFileFromDisk(
+    file: Express.Multer.File,
+    user: User,
+    options: {
+      type: 'audio' | 'image' | 'video';
+      metadata?: Record<string, any>;
+      isPublic?: boolean;
+    },
+  ): Promise<FileBase & { url: string }> {
+    let uploadedFileKey: string | null = null;
+    let tempFilePath: string | null = file.path; // Track Multer's temp file
+
+    try {
+      const repository = this.getRepositoryForType(options.type);
+
+      // Build a stable key for the stored object
+      const originalExt = (
+        file.originalname.match(/\.[^.]+$/)?.[0] || ''
+      ).toLowerCase();
+      const key = `${Date.now()}-${Math.random().toString(36).slice(2)}${originalExt}`;
+
+      // Create a readable stream from the temp file path
+      const fs = await import('fs');
+      const stream = fs.createReadStream(file.path);
+
+      await this.provider.uploadStream(key, stream as unknown as any, {
+        contentType: file.mimetype,
+        isPublic: options.isPublic,
+        metadata: options.metadata,
+      });
+      uploadedFileKey = key;
+
+      // CRITICAL FIX: Delete Multer's temporary file immediately after successful stream
+      await fs.promises.unlink(file.path);
+      tempFilePath = null; // Mark as deleted
+
+      const entityBase = {
+        filename: file.originalname,
+        originalFilename: file.originalname,
+        mimeType: file.mimetype,
+        size: file.size,
+        key,
+        bucket: process.env.STORAGE_BUCKET || 'local',
+        uploadedBy: user,
+        metadata: options.metadata || {},
+        isPublic: !!options.isPublic,
+        status: FileStatus.PENDING,
+      } as Partial<FileBase>;
+
+      let entity: FileBase;
+      switch (options.type) {
+        case 'audio':
+          entity = this.audioFileRepository.create(entityBase as any) as any;
+          break;
+        case 'image':
+          entity = this.imageFileRepository.create(entityBase as any) as any;
+          break;
+        case 'video':
+          entity = this.videoFileRepository.create(entityBase as any) as any;
+          break;
+        default:
+          throw new Error(`Unsupported file type: ${options.type}`);
+      }
+
+      const saved = await repository.save(entity);
+
+      // Derive URL at response time (do not persist absolute URL)
+      const baseUrl = process.env.API_BASE_URL || 'http://localhost:3000';
+      const url = `${baseUrl}/storage/files/${saved.id}`;
+      return { ...(saved as any), url };
+    } catch (error) {
+      this.logger.error(
+        `Failed to upload file from disk: ${error.message}`,
+        error.stack,
+      );
+
+      // COMPREHENSIVE CLEANUP: Clean up both storage provider and Multer temp file
+      if (uploadedFileKey) {
+        try {
+          await this.provider.delete(uploadedFileKey);
+          this.logger.warn(`Cleaned up orphaned file: ${uploadedFileKey}`);
+        } catch (deleteError) {
+          this.logger.error(
+            `Failed to clean up file ${uploadedFileKey}: ${(deleteError as any).message}`,
+          );
+        }
+      }
+
+      // Clean up Multer's temporary file if it still exists
+      if (tempFilePath) {
+        try {
+          const fs = await import('fs');
+          await fs.promises.unlink(tempFilePath);
+          this.logger.warn(`Cleaned up temp file: ${tempFilePath}`);
+        } catch (unlinkError) {
+          this.logger.warn(
+            `Failed to clean up temp file: ${(unlinkError as any).message}`,
+          );
+        }
+      }
+
       throw error;
     }
   }
@@ -528,6 +649,190 @@ export class StorageService {
     } catch (error) {
       this.logger.error(
         `Failed to upload chunk: ${error.message}`,
+        error.stack,
+      );
+      throw error;
+    }
+  }
+
+  // ADDED: Stream-based chunk upload (industry standard for large files)
+  async uploadChunkFromDisk(
+    uploadId: string,
+    chunkNumber: number,
+    file: Express.Multer.File,
+  ): Promise<{ PartNumber: number; ETag: string }> {
+    let tempFilePath: string | null = file.path;
+
+    try {
+      const chunk = await this.fileChunkRepository.findOne({
+        where: { uploadId, chunkNumber },
+        relations: ['file'],
+      });
+
+      if (!chunk) {
+        throw new BadRequestException(
+          `Chunk not found: ${uploadId} - ${chunkNumber}`,
+        );
+      }
+
+      // Stream chunk from disk to storage provider
+      const chunkKey = `${chunk.file.key}_chunk${chunkNumber}`;
+      const fs = await import('fs');
+      const stream = fs.createReadStream(file.path);
+
+      await this.provider.uploadStream(chunkKey, stream as unknown as any, {
+        contentType: 'application/octet-stream',
+        metadata: { uploadId, chunkNumber: chunkNumber.toString() },
+      });
+
+      // Clean up temp file immediately
+      await fs.promises.unlink(file.path);
+      tempFilePath = null;
+
+      // Update chunk metadata
+      chunk.uploaded = true;
+      chunk.metadata = {
+        ...chunk.metadata,
+        etag: chunkKey,
+        size: file.size,
+      };
+
+      await this.fileChunkRepository.save(chunk);
+
+      return {
+        PartNumber: chunkNumber,
+        ETag: chunkKey,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Failed to upload chunk from disk: ${error.message}`,
+        error.stack,
+      );
+
+      // Clean up temp file if it still exists
+      if (tempFilePath) {
+        try {
+          const fs = await import('fs');
+          await fs.promises.unlink(tempFilePath);
+        } catch (unlinkError) {
+          this.logger.warn(
+            `Failed to clean up temp chunk file: ${unlinkError.message}`,
+          );
+        }
+      }
+
+      throw error;
+    }
+  }
+
+  // ADDED: Manual completion of multipart upload (called by frontend)
+  async completeMultipartUpload(
+    uploadId: string,
+    parts: { PartNumber: number; ETag: string }[],
+    fileType: 'audio' | 'image' | 'video',
+    metadata: any,
+    user: any,
+  ): Promise<FileBase & { url: string }> {
+    try {
+      const chunks = await this.fileChunkRepository.find({
+        where: { uploadId },
+        relations: ['file'],
+        order: { chunkNumber: 'ASC' },
+      });
+
+      if (!chunks.length) {
+        throw new BadRequestException(
+          `No chunks found for upload ID: ${uploadId}`,
+        );
+      }
+
+      // Verify all parts are uploaded
+      const missingParts = parts.filter(
+        (part) =>
+          !chunks.find(
+            (chunk) => chunk.chunkNumber === part.PartNumber && chunk.uploaded,
+          ),
+      );
+
+      if (missingParts.length > 0) {
+        throw new BadRequestException(
+          `Missing chunks: ${missingParts.map((p) => p.PartNumber).join(', ')}`,
+        );
+      }
+
+      const file = chunks[0].file;
+      const finalKey = file.key.replace('temp_', ''); // Remove temp prefix
+
+      // Combine chunks based on storage provider
+      if (this.provider instanceof LocalStorageProvider) {
+        await this.combineChunksLocally(
+          chunks,
+          this.provider.getBasePath() + '/' + finalKey,
+        );
+      } else if (this.provider instanceof S3StorageProvider) {
+        await this.provider.completeMultipartUpload(finalKey, uploadId, parts);
+      } else {
+        throw new Error('Unsupported storage provider for multipart upload');
+      }
+
+      // Update file with final details
+      file.key = finalKey;
+      file.status = FileStatus.COMPLETE;
+      file.metadata = { ...file.metadata, ...metadata };
+
+      const repository = this.getRepositoryForType(fileType);
+      const savedFile = await repository.save(file);
+
+      // Clean up chunks
+      await Promise.all(chunks.map((chunk) => this.deleteChunk(chunk)));
+      await this.fileChunkRepository.remove(chunks);
+
+      // Derive URL at response time
+      const baseUrl = process.env.API_BASE_URL || 'http://localhost:3000';
+      const url = `${baseUrl}/storage/files/${savedFile.id}`;
+
+      this.logger.log(`Successfully completed multipart upload: ${uploadId}`);
+      return { ...(savedFile as any), url };
+    } catch (error) {
+      this.logger.error(
+        `Failed to complete multipart upload: ${error.message}`,
+        error.stack,
+      );
+      throw error;
+    }
+  }
+
+  // ADDED: Abort multipart upload
+  async abortMultipartUpload(uploadId: string, user: any): Promise<void> {
+    try {
+      const chunks = await this.fileChunkRepository.find({
+        where: { uploadId },
+        relations: ['file'],
+      });
+
+      if (!chunks.length) {
+        this.logger.warn(`No chunks found for upload ID: ${uploadId}`);
+        return;
+      }
+
+      const file = chunks[0].file;
+
+      // Clean up storage provider
+      if (this.provider instanceof S3StorageProvider) {
+        await this.provider.abortMultipartUpload(file.key, uploadId);
+      }
+
+      // Clean up individual chunks
+      await Promise.all(chunks.map((chunk) => this.deleteChunk(chunk)));
+
+      // Remove database entries
+      await this.fileChunkRepository.remove(chunks);
+      await this.fileRepository.remove(file);
+
+      this.logger.log(`Successfully aborted multipart upload: ${uploadId}`);
+    } catch (error) {
+      this.logger.error(
+        `Failed to abort multipart upload: ${error.message}`,
         error.stack,
       );
       throw error;

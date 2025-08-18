@@ -4,7 +4,8 @@
 import { MulterOptions } from '@nestjs/platform-express/multer/interfaces/multer-options.interface';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { extname, join } from 'path';
+import * as fs from 'fs';
 import { Request } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -73,8 +74,29 @@ export const multerOptions: MulterOptions = {
   limits: {
     fileSize: 100 * 1024 * 1024, // 100MB
   },
+  // Use disk storage to avoid keeping large files in memory.
+  // Save to a temp folder under the configured LOCAL_STORAGE_PATH (default: ./uploads/tmp)
   storage: diskStorage({
-    destination: './uploads',
+    destination: (
+      req: Request,
+      file: Express.Multer.File,
+      callback: Function,
+    ) => {
+      const baseDir = process.env.LOCAL_STORAGE_PATH || './uploads';
+      const tempDir = join(baseDir, 'tmp');
+      try {
+        fs.mkdirSync(tempDir, { recursive: true });
+      } catch {
+        return callback(
+          new HttpException(
+            'Failed to prepare upload directory',
+            HttpStatus.INTERNAL_SERVER_ERROR,
+          ),
+          null,
+        );
+      }
+      callback(null, tempDir);
+    },
     filename: (req: Request, file: Express.Multer.File, callback: Function) => {
       const uniqueSuffix = uuidv4();
       const ext = extname(file.originalname).toLowerCase();

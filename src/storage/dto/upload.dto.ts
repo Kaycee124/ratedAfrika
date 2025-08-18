@@ -25,6 +25,16 @@ export class UploadFileDto {
   @IsOptional()
   @IsObject()
   metadata?: Record<string, any>;
+
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    if (typeof value === 'boolean') return value;
+    return undefined;
+  })
+  forceMultipart?: boolean;
 }
 
 export class InitiateMultipartUploadDto extends UploadFileDto {
@@ -42,4 +52,15 @@ export class UploadChunkDto {
 
   chunkNumber: number;
   totalChunks: number;
+}
+
+export class CompleteMultipartUploadDto {
+  @IsEnum(FileType)
+  type: FileType;
+
+  parts: { PartNumber: number; ETag: string }[];
+
+  @IsOptional()
+  @IsObject()
+  metadata?: Record<string, any>;
 }
