@@ -303,6 +303,13 @@ export class StorageService {
       });
       uploadedFileKey = key;
 
+      // Ensure a non-null path for the database (column is NOT NULL)
+      // Local: absolute on-disk path; Remote (e.g., S3): fall back to key
+      const storagePath =
+        this.provider instanceof LocalStorageProvider
+          ? join(this.provider.getBasePath(), key)
+          : key;
+
       // CRITICAL FIX: Delete Multer's temporary file immediately after successful stream
       await fs.promises.unlink(file.path);
       tempFilePath = null; // Mark as deleted
@@ -312,6 +319,7 @@ export class StorageService {
         originalFilename: file.originalname,
         mimeType: file.mimetype,
         size: file.size,
+        path: storagePath,
         key,
         bucket: process.env.STORAGE_BUCKET || 'local',
         uploadedBy: user,
