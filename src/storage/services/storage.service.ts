@@ -328,16 +328,72 @@ export class StorageService {
         status: FileStatus.PENDING,
       } as Partial<FileBase>;
 
+      // Derive a format from MIME to satisfy NOT NULL enum columns on child entities
+      const derivedFormat = this.getMimeTypeFormat(file.mimetype);
+
       let entity: FileBase;
       switch (options.type) {
         case 'audio':
-          entity = this.audioFileRepository.create(entityBase as any) as any;
+          entity = this.audioFileRepository.create({
+            ...(entityBase as any),
+            format: derivedFormat as AudioFormat,
+            quality: AudioQuality.MASTER,
+            duration: 0,
+            bitrate: 0,
+            sampleRate: 0,
+            channels: 0,
+            waveform: [],
+            loudness: 0,
+            spectrum: { frequencies: [], magnitudes: [] },
+            encoderSettings: '',
+            analysis: { peakAmplitude: 0, dynamicRange: 0, clipCount: 0 },
+            hasClipping: false,
+            isNormalized: false,
+          } as any) as any;
           break;
         case 'image':
-          entity = this.imageFileRepository.create(entityBase as any) as any;
+          entity = this.imageFileRepository.create({
+            ...(entityBase as any),
+            format: derivedFormat as ImageFormat,
+            sizeType: ImageSize.ORIGINAL,
+            width: 0,
+            height: 0,
+            dpi: 72,
+            hasAlpha: false,
+            compression: { type: 'none', quality: 100, ratio: 1 },
+            analysis: {
+              dominantColors: [],
+              averageColor: '#FFFFFF',
+              brightness: 0,
+              contrast: 0,
+              sharpness: 0,
+            },
+          } as any) as any;
           break;
         case 'video':
-          entity = this.videoFileRepository.create(entityBase as any) as any;
+          entity = this.videoFileRepository.create({
+            ...(entityBase as any),
+            format: derivedFormat as VideoFormat,
+            quality: VideoQuality.MASTER,
+            duration: 0,
+            width: 0,
+            height: 0,
+            frameRate: 0,
+            bitrate: 0,
+            videoStream: {
+              codec: 'pending',
+              bitrate: 0,
+              frameRate: 0,
+              profile: 'main',
+              keyframeInterval: 0,
+            },
+            audioStream: {
+              codec: 'pending',
+              bitrate: 0,
+              sampleRate: 44100,
+              channels: 2,
+            },
+          } as any) as any;
           break;
         default:
           throw new Error(`Unsupported file type: ${options.type}`);
