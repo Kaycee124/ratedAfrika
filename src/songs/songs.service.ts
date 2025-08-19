@@ -1380,7 +1380,32 @@ export class SongsService {
     artistId: string,
     user: User,
   ): Promise<ApiResponse<DiscographyResponseDto>> {
+    // Validate input before processing
+    if (!artistId || typeof artistId !== 'string') {
+      return {
+        statusCode: HttpStatus.BAD_REQUEST,
+        message: 'Artist ID is required',
+      };
+    }
+
     const cleanedArtistId = artistId.trim();
+    
+    if (!cleanedArtistId) {
+      return {
+        statusCode: HttpStatus.BAD_REQUEST,
+        message: 'Artist ID cannot be empty',
+      };
+    }
+
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(cleanedArtistId)) {
+      return {
+        statusCode: HttpStatus.BAD_REQUEST,
+        message: 'Invalid artist ID format',
+      };
+    }
+
     try {
       // First verify the artist exists
       const artist = await this.artistRepository.findOne({
