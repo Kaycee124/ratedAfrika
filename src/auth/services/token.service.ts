@@ -42,12 +42,25 @@ export class TokenService {
 
   // JWT Access Token generation
   async generateAccessToken(user: User): Promise<string> {
+    // Load user with artist profiles if not already loaded
+    let userWithArtists = user;
+    if (!user.artistProfiles) {
+      userWithArtists = await this.userRepository.findOne({
+        where: { id: user.id },
+        relations: ['artistProfiles'],
+      });
+    }
+
     const payload = {
       sub: user.id,
       tokenVersion: user.tokenVersion,
       email: user.email,
       name: user.name,
       subscription: user.subscription,
+      artistProfiles: userWithArtists?.artistProfiles?.map(artist => ({
+        id: artist.id,
+        name: artist.name,
+      })) || [],
     };
 
     const secret = this.configService.get<string>('JWT_SECRET');

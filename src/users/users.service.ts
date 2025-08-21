@@ -10,6 +10,7 @@ import { User, Sub_Plans, UserRole } from './user.entity';
 import { RegisterUserDto } from 'src/auth/dto/register.dto';
 import { UpdateUserDto } from 'src/auth/dto/update-user.dto';
 import { UpgradePlanDto } from 'src/auth/dto/upgrade-plan.dto';
+import { TokenService } from '../auth/services/token.service';
 import { EmailService } from 'src/auth/services/email.service';
 import { OtpService } from 'src/auth/services/otp.service';
 import {
@@ -19,7 +20,7 @@ import {
   UpdateProfileImageDto,
   UpdateCountryDto,
 } from './dtos/update.dto';
-import { TokenService } from 'src/auth/services/token.service';
+// import { TokenService } from 'src/auth/services/token.service';
 // import { SpotifyUserDto } from 'src/auth/dto/spotify-user.dto';
 // import { error, trace } from 'console';
 
@@ -504,7 +505,7 @@ export class UsersService {
   async upgradeUserPlan(
     userId: string,
     upgradePlanDto: UpgradePlanDto,
-  ): Promise<User | { message: string }> {
+  ): Promise<(User & { newAccessToken?: string }) | { message: string }> {
     const user = await this.UserRepository.findOne({
       where: { id: userId },
       select: {
@@ -540,9 +541,10 @@ export class UsersService {
       User ID: ${userId}, New Plan: ${newPlan}`,
     );
 
-    // Fetch and return only the required fields
+    // Fetch updated user with all necessary data
     const updatedUser = await this.UserRepository.findOne({
       where: { id: user.id },
+      relations: ['artistProfiles'],
       select: {
         id: true,
         email: true,
@@ -551,10 +553,18 @@ export class UsersService {
         role: true,
         isEmailVerified: true,
         isActive: true,
+        artistProfiles: true,
       },
     });
 
-    return updatedUser;
+    // Generate new access token with updated subscription
+    const newAccessToken =
+      await this.tokenService.generateAccessToken(updatedUser);
+
+    return {
+      ...updatedUser,
+      newAccessToken,
+    };
   }
 
   // Get user plan status

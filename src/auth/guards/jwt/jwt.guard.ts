@@ -61,6 +61,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
         name: payload.name,
         subscription: payload.subscription,
         tokenVersion: payload.tokenVersion,
+        artistProfiles: payload.artistProfiles || [],
       };
 
       console.log('Step 5a: JWT token structure verified successfully', {

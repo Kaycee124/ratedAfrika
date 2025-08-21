@@ -215,7 +215,7 @@ export class ArtistsController {
   async createSimplifiedArtist(
     @Body() createDto: SimplifiedCreateArtistDto,
     @Request() req,
-  ): Promise<ApiResponse<Artist>> {
+  ): Promise<ApiResponse<Artist & { newAccessToken?: string }>> {
     console.log('Create Simple Artist - User:', {
       id: req.user?.id,
       subscription: req.user?.subscription,

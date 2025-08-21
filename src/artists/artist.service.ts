@@ -12,6 +12,7 @@ import {
   SimplifiedCreateTempArtistDto,
 } from './dtos/create-artist.dto';
 import { TempArtist } from './entities/temp-artist.entity';
+import { TokenService } from '../auth/services/token.service';
 
 // Define consistent response interface
 interface ApiResponse<T = any> {
@@ -33,12 +34,13 @@ export class ArtistsService {
     private readonly labelRepository: Repository<Label>,
     @InjectRepository(TempArtist)
     private readonly tempArtistRepository: Repository<TempArtist>,
+    private readonly tokenService: TokenService,
   ) {}
 
   async create(
     createArtistDto: CreateArtistDto,
     user: User,
-  ): Promise<ApiResponse<Artist>> {
+  ): Promise<ApiResponse<Artist & { newAccessToken?: string }>> {
     try {
       // Check if artist with same name exists
       const existingArtist = await this.artistRepository.findOne({
@@ -60,10 +62,21 @@ export class ArtistsService {
 
       const savedArtist = await this.artistRepository.save(artist);
 
+      // Generate new access token with updated artist profiles
+      const userWithArtists = await this.userRepository.findOne({
+        where: { id: user.id },
+        relations: ['artistProfiles'],
+      });
+      
+      const newAccessToken = await this.tokenService.generateAccessToken(userWithArtists);
+
       return {
         statusCode: HttpStatus.CREATED,
         message: 'Artist profile created successfully',
-        data: savedArtist,
+        data: {
+          ...savedArtist,
+          newAccessToken,
+        },
       };
     } catch (error) {
       this.logger.error(
@@ -315,7 +328,7 @@ export class ArtistsService {
   async createSimplifiedArtist(
     createDto: SimplifiedCreateArtistDto,
     user: User,
-  ): Promise<ApiResponse<Artist>> {
+  ): Promise<ApiResponse<Artist & { newAccessToken?: string }>> {
     try {
       // First check if an artist with this name already exists
       const existingArtist = await this.artistRepository.findOne({
@@ -345,10 +358,21 @@ export class ArtistsService {
 
       const savedArtist = await this.artistRepository.save(artist);
 
+      // Generate new access token with updated artist profiles
+      const userWithArtists = await this.userRepository.findOne({
+        where: { id: user.id },
+        relations: ['artistProfiles'],
+      });
+      
+      const newAccessToken = await this.tokenService.generateAccessToken(userWithArtists);
+
       return {
         statusCode: HttpStatus.CREATED,
         message: 'Artist profile created successfully',
-        data: savedArtist,
+        data: {
+          ...savedArtist,
+          newAccessToken,
+        },
       };
     } catch (error) {
       this.logger.error(
