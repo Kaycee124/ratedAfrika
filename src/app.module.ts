@@ -12,6 +12,7 @@ import { ArtistsModule } from './artists/artists.module';
 import { LabelsModule } from './label/label.module';
 import { CollaboratorsModule } from './collaborators/collaborators.module';
 import { LyricsModule } from './lyrics/lyrics.module';
+import { RatedFansModule } from './ratedfans/ratedfans.module';
 
 // Infrastructure Modules
 import { DatabaseModule } from 'src/core/database/database.module';
@@ -45,10 +46,12 @@ import spotifyOauth from './config/spotify-oauth';
     }),
 
     // Rate limiting
-    ThrottlerModule.forRoot([{
-      ttl: 60,
-      limit: 60,
-    }]),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60,
+        limit: 60,
+      },
+    ]),
 
     // Infrastructure Modules
     DatabaseModule, // Global database configuration
@@ -63,6 +66,7 @@ import spotifyOauth from './config/spotify-oauth';
     CollaboratorsModule,
     LyricsModule,
     StorageModule,
+    RatedFansModule,
   ],
   controllers: [AppController],
   providers: [AppService],

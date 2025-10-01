@@ -77,7 +77,18 @@ export class AuthController {
     description: 'Invalid credentials',
   })
   async login(@Body() loginUserDto: LoginUserDto) {
-    return await this.authService.login(loginUserDto);
+    // 2024-12-28: Fixed status code issue by properly handling HTTP exceptions
+    const result = await this.authService.login(loginUserDto);
+
+    if (result.statusCode === HttpStatus.UNAUTHORIZED) {
+      throw new HttpException(result.message, HttpStatus.UNAUTHORIZED);
+    }
+
+    if (result.statusCode === HttpStatus.FORBIDDEN) {
+      throw new HttpException(result.message, HttpStatus.FORBIDDEN);
+    }
+
+    return result;
   }
 
   @Post('verify-otp')
@@ -88,6 +99,21 @@ export class AuthController {
   })
   async verifyOtp(@Body() verifyOtpDto: VerifyOtpDto) {
     return await this.authService.verifyOtp(verifyOtpDto);
+  }
+
+  @Post('resend-otp')
+  @ApiOperation({ summary: 'Resend OTP for login' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'OTP resent successfully',
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'User not found or email not provided',
+  })
+  async resendOtp(@Body() body: { email: string }) {
+    // 2024-12-28: Added resend OTP endpoint
+    return await this.authService.resendOtp(body.email);
   }
 
   @Post('logout')

@@ -18,3 +18,7 @@ export { ReleaseContainer } from '../../songs/entities/album.entity';
 export { SplitSheet } from '../../collaborators/entities/splitsheet.entity';
 export { SplitSheetEntry } from '../../collaborators/entities/splitsheetEntry.entity';
 export { PayoutMethod } from '../../collaborators/entities/payment.entity';
+export { RatedFansPage } from '../../ratedfans/entities/ratedfans-page.entity';
+export { RatedFansLink } from '../../ratedfans/entities/ratedfans-link.entity';
+export { PresaveSignup } from '../../ratedfans/entities/presave-signup.entity';
+export { PromoCard } from '../../ratedfans/entities/promo-card.entity';

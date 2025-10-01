@@ -97,6 +97,9 @@ export class CreateArtistDto {
 export class SimplifiedCreateArtistDto {
   @IsString()
   name: string;
+
+  @IsEmail()
+  email: string;
 }
 
 // simplified-create-temp-artist.dto.ts

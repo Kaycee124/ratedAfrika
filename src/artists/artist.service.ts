@@ -67,8 +67,9 @@ export class ArtistsService {
         where: { id: user.id },
         relations: ['artistProfiles'],
       });
-      
-      const newAccessToken = await this.tokenService.generateAccessToken(userWithArtists);
+
+      const newAccessToken =
+        await this.tokenService.generateAccessToken(userWithArtists);
 
       return {
         statusCode: HttpStatus.CREATED,
@@ -330,25 +331,37 @@ export class ArtistsService {
     user: User,
   ): Promise<ApiResponse<Artist & { newAccessToken?: string }>> {
     try {
-      // First check if an artist with this name already exists
-      const existingArtist = await this.artistRepository.findOne({
+      // Check if an artist with this name already exists
+      const existingArtistByName = await this.artistRepository.findOne({
         where: { name: createDto.name },
       });
 
-      if (existingArtist) {
+      if (existingArtistByName) {
         return {
           statusCode: HttpStatus.CONFLICT,
           message: 'Artist name is already taken',
         };
       }
 
-      // Create new artist with just the required name field
+      // Check if an artist with this email already exists
+      const existingArtistByEmail = await this.artistRepository.findOne({
+        where: { email: createDto.email },
+      });
+
+      if (existingArtistByEmail) {
+        return {
+          statusCode: HttpStatus.CONFLICT,
+          message: 'Artist email is already registered',
+        };
+      }
+
+      // Create new artist with name and email
       // Initialize other required fields with empty values
       const artist = this.artistRepository.create({
         name: createDto.name,
+        email: createDto.email,
         user,
         // Initialize required fields with default values
-        email: '', // Can be updated later
         country: '', // Can be updated later
         phoneNumber: '', // Can be updated later
         genres: [], // Initialize as empty array
@@ -363,8 +376,9 @@ export class ArtistsService {
         where: { id: user.id },
         relations: ['artistProfiles'],
       });
-      
-      const newAccessToken = await this.tokenService.generateAccessToken(userWithArtists);
+
+      const newAccessToken =
+        await this.tokenService.generateAccessToken(userWithArtists);
 
       return {
         statusCode: HttpStatus.CREATED,

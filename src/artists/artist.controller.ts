@@ -202,7 +202,7 @@ export class ArtistsController {
   @Post('create-simple')
   @UseGuards(SubscriptionGuard)
   @RequiredSubscriptions(Sub_Plans.ARTIST, Sub_Plans.LABEL)
-  @ApiOperation({ summary: 'Create a new artist profile with just name' })
+  @ApiOperation({ summary: 'Create a new artist profile with name and email' })
   @ApiBody({ type: SimplifiedCreateArtistDto })
   @SwaggerApiResponse({
     status: HttpStatus.CREATED,
@@ -210,7 +210,15 @@ export class ArtistsController {
   })
   @SwaggerApiResponse({
     status: HttpStatus.CONFLICT,
-    description: 'Artist name is already taken',
+    description: 'Artist name or email is already taken',
+  })
+  @SwaggerApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Invalid email format or missing required fields',
+  })
+  @SwaggerApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: 'Insufficient subscription plan',
   })
   async createSimplifiedArtist(
     @Body() createDto: SimplifiedCreateArtistDto,

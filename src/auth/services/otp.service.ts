@@ -45,4 +45,15 @@ export class OtpService {
     await this.otpRepository.delete({ id: otp.id });
     return true;
   }
+
+  async findExistingOtp(user: User): Promise<Otp | null> {
+    return await this.otpRepository.findOne({
+      where: { user: { id: user.id } },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async deleteExpiredOtp(otpId: number): Promise<void> {
+    await this.otpRepository.delete({ id: otpId });
+  }
 }

@@ -168,6 +168,75 @@ export class AuthService {
     };
   }
 
+  // 2024-12-28: Secure resend OTP functionality - only resends existing valid OTPs
+  async resendOtp(email: string): Promise<ApiResponse> {
+    // Input validation
+    if (!email) {
+      return {
+        statusCode: HttpStatus.BAD_REQUEST,
+        message: 'Email is required',
+      };
+    }
+
+    // Find user (but don't reveal if they exist)
+    const user = await this.usersService.findByEmail(email);
+    if (!user) {
+      // Same message as expired OTP to prevent enumeration
+      return {
+        statusCode: HttpStatus.UNAUTHORIZED,
+        message:
+          'No active OTP found. Please log in again to receive a new OTP.',
+      };
+    }
+
+    // Check for existing OTP
+    const existingOtp = await this.otpService.findExistingOtp(user);
+
+    if (existingOtp) {
+      if (existingOtp.expiresAt > new Date()) {
+        // Valid OTP exists - resend it
+        try {
+          await this.emailService.sendOtpEmail(
+            user.email,
+            user.name,
+            existingOtp.code,
+          );
+
+          this.logger.log(`OTP resent to user ${user.email}`);
+
+          return {
+            statusCode: HttpStatus.OK,
+            message:
+              'Your existing OTP has been resent. Please check your email.',
+          };
+        } catch (error) {
+          this.logger.error(`Failed to resend OTP to ${user.email}:`, error);
+          return {
+            statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+            message: 'Failed to send OTP. Please try again.',
+          };
+        }
+      } else {
+        // Expired OTP - clean up and ask for relogin
+        await this.otpService.deleteExpiredOtp(existingOtp.id);
+
+        this.logger.log(`Expired OTP cleaned up for user ${user.email}`);
+
+        return {
+          statusCode: HttpStatus.UNAUTHORIZED,
+          message:
+            'Your OTP has expired. Please log in again to receive a new OTP.',
+        };
+      }
+    }
+
+    // No OTP exists - user needs to login first
+    return {
+      statusCode: HttpStatus.UNAUTHORIZED,
+      message: 'No active OTP found. Please log in again to receive a new OTP.',
+    };
+  }
+
   // async logout(userId: string, refreshToken: string): Promise<ApiResponse> {
   //   // Changed code here
   //   try {

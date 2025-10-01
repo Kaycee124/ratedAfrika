@@ -1389,7 +1389,7 @@ export class SongsService {
     }
 
     const cleanedArtistId = artistId.trim();
-    
+
     if (!cleanedArtistId) {
       return {
         statusCode: HttpStatus.BAD_REQUEST,
@@ -1398,7 +1398,8 @@ export class SongsService {
     }
 
     // Validate UUID format
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(cleanedArtistId)) {
       return {
         statusCode: HttpStatus.BAD_REQUEST,
@@ -1554,6 +1555,8 @@ export class SongsService {
         }),
       );
 
+      // Moved to public method below
+
       const epsWithUrls = await Promise.all(
         eps.map(async (ep) => {
           const filePaths = await this.getReleaseContainerFilePaths(ep, user);
@@ -1634,5 +1637,20 @@ export class SongsService {
         message: 'Failed to retrieve artist discography',
       };
     }
+  }
+
+  /**
+   * Returns only cover art path and preview clip path for a song
+   * Used by RatedFans service for optimized file path resolution
+   */
+  async returnCoverpathandpreviewclippath(song: Song): Promise<{
+    coverArtPath: string;
+    previewClip?: { path: string };
+  }> {
+    const filePaths = await this.getFilePaths(song);
+    return {
+      coverArtPath: filePaths.coverArtPath,
+      previewClip: filePaths.previewClip,
+    };
   }
 }

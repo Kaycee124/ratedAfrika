@@ -18,6 +18,10 @@ import { ReleaseContainer } from 'src/songs/entities/album.entity';
 import { SplitSheet } from 'src/collaborators/entities/splitsheet.entity';
 import { SplitSheetEntry } from 'src/collaborators/entities/splitsheetEntry.entity';
 import { PayoutMethod } from 'src/collaborators/entities/payment.entity';
+import { RatedFansPage } from 'src/ratedfans/entities/ratedfans-page.entity';
+import { RatedFansLink } from 'src/ratedfans/entities/ratedfans-link.entity';
+import { PresaveSignup } from 'src/ratedfans/entities/presave-signup.entity';
+import { PromoCard } from 'src/ratedfans/entities/promo-card.entity';
 import * as dotenv from 'dotenv';
 const useSSL = process.env.DATABASE_SSL === 'true';
 
@@ -52,6 +56,10 @@ export const datasource = new DataSource({
     SplitSheet,
     SplitSheetEntry,
     PayoutMethod,
+    RatedFansPage,
+    RatedFansLink,
+    PresaveSignup,
+    PromoCard,
   ],
   migrations: ['src/migration/*.ts'],
   ssl: useSSL ? { rejectUnauthorized: false } : false,
