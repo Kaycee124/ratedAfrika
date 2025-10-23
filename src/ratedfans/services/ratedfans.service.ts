@@ -431,16 +431,16 @@ export class RatedFansService {
     const listItems: PageListItemDto[] = pages.map((page) => ({
       id: page.id,
       slug: page.slug,
-      pageUrl: `${baseUrl}/r/${page.slug}`, // Full URL to access the page
-      releaseTitle: page.releaseTitle, // 2024-09-22: change: updated field name
+      pageUrl: `${baseUrl}/r/${page.slug}`,
+      releaseTitle: page.releaseTitle,
       isPublished: page.isPublished,
       isPresaveEnabled: page.isPresaveEnabled,
       createdAt: page.createdAt,
       updatedAt: page.updatedAt,
-      songTitle: page.song.title,
-      artistName: page.artist.name,
+      songTitle: page.song?.title || page.releaseTitle || 'Your Release', // Provide a fallback
+      artistName: page.artist?.name || 'RatedFans Artist',
       totalLinks: page.links?.length || 0,
-      // TODO: Add totalPresaves when presave stats are implemented
+      presavesTATS: page.presaveSignups,
     }));
 
     return {
