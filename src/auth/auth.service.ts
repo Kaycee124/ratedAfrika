@@ -2,9 +2,10 @@ import {
   Injectable,
   Logger,
   HttpStatus,
+  HttpException,
   Inject,
   forwardRef,
-} from '@nestjs/common'; // Changed code here - added HttpStatus
+} from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { RegisterUserDto } from './dto/register.dto';
 import { LoginUserDto } from './dto/login.dto';
@@ -63,10 +64,10 @@ export class AuthService {
 
     const existingUser = await this.usersService.findByEmail(email);
     if (existingUser) {
-      return {
-        statusCode: HttpStatus.CONFLICT,
-        message: 'User with this email already exists',
-      };
+      throw new HttpException(
+        'User with this email already exists',
+        HttpStatus.CONFLICT,
+      );
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -98,10 +99,10 @@ export class AuthService {
     const user = await this.usersService.findByEmail(email);
 
     if (!user || !(await bcrypt.compare(password, user.password))) {
-      return {
-        statusCode: HttpStatus.UNAUTHORIZED,
-        message: 'Invalid email or password',
-      };
+      throw new HttpException(
+        'Invalid email or password',
+        HttpStatus.UNAUTHORIZED,
+      );
     }
 
     if (!user.isEmailVerified) {
@@ -112,11 +113,10 @@ export class AuthService {
         verificationToken,
         user.name,
       );
-      return {
-        statusCode: HttpStatus.FORBIDDEN,
-        message:
-          'Email not verified. A new verification link has been sent to your email.',
-      };
+      throw new HttpException(
+        'Email not verified. A new verification link has been sent to your email.',
+        HttpStatus.FORBIDDEN,
+      );
     }
 
     const otp = await this.otpService.generateOtp(user);
@@ -144,19 +144,16 @@ export class AuthService {
     const user = await this.usersService.findByEmail(email);
 
     if (!user) {
-      return {
-        statusCode: HttpStatus.UNAUTHORIZED,
-        message: 'Invalid email or OTP',
-      };
+      throw new HttpException('Invalid email or OTP', HttpStatus.UNAUTHORIZED);
     }
 
     const isValidOtp = await this.otpService.verifyOtp(user, otp);
 
     if (!isValidOtp) {
-      return {
-        statusCode: HttpStatus.UNAUTHORIZED,
-        message: 'Invalid or expired OTP',
-      };
+      throw new HttpException(
+        'Invalid or expired OTP',
+        HttpStatus.UNAUTHORIZED,
+      );
     }
 
     const tokens = await this.generateJwt(user);
@@ -172,21 +169,17 @@ export class AuthService {
   async resendOtp(email: string): Promise<ApiResponse> {
     // Input validation
     if (!email) {
-      return {
-        statusCode: HttpStatus.BAD_REQUEST,
-        message: 'Email is required',
-      };
+      throw new HttpException('Email is required', HttpStatus.BAD_REQUEST);
     }
 
     // Find user (but don't reveal if they exist)
     const user = await this.usersService.findByEmail(email);
     if (!user) {
       // Same message as expired OTP to prevent enumeration
-      return {
-        statusCode: HttpStatus.UNAUTHORIZED,
-        message:
-          'No active OTP found. Please log in again to receive a new OTP.',
-      };
+      throw new HttpException(
+        'No active OTP found. Please log in again to receive a new OTP.',
+        HttpStatus.UNAUTHORIZED,
+      );
     }
 
     // Check for existing OTP
@@ -211,10 +204,10 @@ export class AuthService {
           };
         } catch (error) {
           this.logger.error(`Failed to resend OTP to ${user.email}:`, error);
-          return {
-            statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-            message: 'Failed to send OTP. Please try again.',
-          };
+          throw new HttpException(
+            'Failed to send OTP. Please try again.',
+            HttpStatus.INTERNAL_SERVER_ERROR,
+          );
         }
       } else {
         // Expired OTP - clean up and ask for relogin
@@ -222,19 +215,18 @@ export class AuthService {
 
         this.logger.log(`Expired OTP cleaned up for user ${user.email}`);
 
-        return {
-          statusCode: HttpStatus.UNAUTHORIZED,
-          message:
-            'Your OTP has expired. Please log in again to receive a new OTP.',
-        };
+        throw new HttpException(
+          'Your OTP has expired. Please log in again to receive a new OTP.',
+          HttpStatus.UNAUTHORIZED,
+        );
       }
     }
 
     // No OTP exists - user needs to login first
-    return {
-      statusCode: HttpStatus.UNAUTHORIZED,
-      message: 'No active OTP found. Please log in again to receive a new OTP.',
-    };
+    throw new HttpException(
+      'No active OTP found. Please log in again to receive a new OTP.',
+      HttpStatus.UNAUTHORIZED,
+    );
   }
 
   // async logout(userId: string, refreshToken: string): Promise<ApiResponse> {
@@ -300,10 +292,10 @@ export class AuthService {
         `Error during logout for userId ${userId}: ${error.message}`,
         error.stack,
       );
-      return {
-        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-        message: 'An error occurred during logout.',
-      };
+      throw new HttpException(
+        'An error occurred during logout.',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -313,18 +305,15 @@ export class AuthService {
     // Changed code here
     const payload = await this.tokenService.validateRefreshToken(refreshToken);
     if (!payload) {
-      return {
-        statusCode: HttpStatus.UNAUTHORIZED,
-        message: 'Invalid or expired refresh token.',
-      };
+      throw new HttpException(
+        'Invalid or expired refresh token.',
+        HttpStatus.UNAUTHORIZED,
+      );
     }
 
     const user = await this.usersService.findById(payload.sub);
     if (!user) {
-      return {
-        statusCode: HttpStatus.NOT_FOUND,
-        message: 'User not found.',
-      };
+      throw new HttpException('User not found.', HttpStatus.NOT_FOUND);
     }
 
     const tokens = await this.generateJwt(user);
@@ -366,18 +355,15 @@ export class AuthService {
     // Changed code here
     const userId = await this.tokenService.validatePasswordResetCode(token);
     if (!userId) {
-      return {
-        statusCode: HttpStatus.UNAUTHORIZED,
-        message: 'Invalid or expired password reset token.',
-      };
+      throw new HttpException(
+        'Invalid or expired password reset token.',
+        HttpStatus.UNAUTHORIZED,
+      );
     }
 
     const user = await this.usersService.findById(userId);
     if (!user) {
-      return {
-        statusCode: HttpStatus.NOT_FOUND,
-        message: 'User not found.',
-      };
+      throw new HttpException('User not found.', HttpStatus.NOT_FOUND);
     }
 
     user.password = await bcrypt.hash(newPassword, 10);
@@ -396,18 +382,15 @@ export class AuthService {
     const userId =
       await this.tokenService.validateEmailVerificationToken(token);
     if (!userId) {
-      return {
-        statusCode: HttpStatus.UNAUTHORIZED,
-        message: 'Invalid or expired email verification token.',
-      };
+      throw new HttpException(
+        'Invalid or expired email verification token.',
+        HttpStatus.UNAUTHORIZED,
+      );
     }
 
     const user = await this.usersService.findById(userId);
     if (!user) {
-      return {
-        statusCode: HttpStatus.NOT_FOUND,
-        message: 'User not found.',
-      };
+      throw new HttpException('User not found.', HttpStatus.NOT_FOUND);
     }
 
     if (user.isEmailVerified) {
@@ -436,10 +419,7 @@ export class AuthService {
     const user = await this.usersService.findById(userId);
 
     if (!user) {
-      return {
-        statusCode: HttpStatus.NOT_FOUND,
-        message: 'User not found.',
-      };
+      throw new HttpException('User not found.', HttpStatus.NOT_FOUND);
     }
 
     const isPasswordValid = await bcrypt.compare(
@@ -447,10 +427,10 @@ export class AuthService {
       user.password,
     );
     if (!isPasswordValid) {
-      return {
-        statusCode: HttpStatus.UNAUTHORIZED,
-        message: 'Invalid current password.',
-      };
+      throw new HttpException(
+        'Invalid current password.',
+        HttpStatus.UNAUTHORIZED,
+      );
     }
 
     user.password = await bcrypt.hash(newPassword, 10);
@@ -467,18 +447,12 @@ export class AuthService {
     // Changed code here
     const user = await this.usersService.findById(userId);
     if (!user) {
-      return {
-        statusCode: HttpStatus.NOT_FOUND,
-        message: 'User not found.',
-      };
+      throw new HttpException('User not found.', HttpStatus.NOT_FOUND);
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      return {
-        statusCode: HttpStatus.UNAUTHORIZED,
-        message: 'Invalid password.',
-      };
+      throw new HttpException('Invalid password.', HttpStatus.UNAUTHORIZED);
     }
 
     await this.usersService.remove(user);

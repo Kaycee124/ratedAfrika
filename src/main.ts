@@ -2,9 +2,12 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { HttpErrorFilter } from './errors/globalfilter';
+import { customLoggerClass } from './logger/logger.service';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    logger: new customLoggerClass(),
+  });
 
   app.useGlobalPipes(new ValidationPipe()); // Ensures validation works globally
   app.useGlobalFilters(new HttpErrorFilter());

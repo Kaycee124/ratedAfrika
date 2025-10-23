@@ -1,5 +1,5 @@
 // src/songs/songs.service.ts
-import { Injectable, Logger, HttpStatus } from '@nestjs/common';
+import { Injectable, Logger, HttpStatus, HttpException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Song, SongStatus, ReleaseType } from './entities/song.entity';
@@ -97,10 +97,10 @@ export class SongsService {
 
     if (!file) {
       this.logger.warn(`File not found for '${fieldName}' with ID '${fileId}'`);
-      return {
-        statusCode: HttpStatus.NOT_FOUND,
-        message: `File for '${fieldName}' with ID '${fileId}' not found in the system.`,
-      };
+      throw new HttpException(
+        `File for '${fieldName}' with ID '${fileId}' not found in the system.`,
+        HttpStatus.NOT_FOUND,
+      );
     }
 
     // Log file details for debugging
@@ -119,10 +119,10 @@ export class SongsService {
     // Optional: Add ownership check if needed
     if (user && file.uploadedBy?.id !== user.id) {
       this.logger.warn(`Access denied for user ${user.id} to file ${fileId}`);
-      return {
-        statusCode: HttpStatus.FORBIDDEN,
-        message: `File for '${fieldName}' with ID '${fileId}' not accessible by this user.`,
-      };
+      throw new HttpException(
+        `File for '${fieldName}' with ID '${fileId}' not accessible by this user.`,
+        HttpStatus.FORBIDDEN,
+      );
     }
 
     return null;
@@ -656,6 +656,9 @@ export class SongsService {
         .leftJoinAndSelect('song.featuredPlatformArtists', 'featuredArtists')
         .leftJoinAndSelect('song.featuredTempArtists', 'tempArtists')
         .leftJoinAndSelect('song.releaseContainer', 'releaseContainer')
+        .leftJoinAndSelect('song.collaborators', 'collaborators')
+        .leftJoinAndSelect('song.currentSplitSheet', 'currentSplitSheet')
+        .leftJoinAndSelect('currentSplitSheet.entries', 'splitSheetEntries')
         .where('song.uploadedBy = :userId', { userId: user.id });
 
       // Apply filters
@@ -827,6 +830,10 @@ export class SongsService {
           featuredPlatformArtists: true,
           featuredTempArtists: true,
           releaseContainer: true,
+          collaborators: true,
+          currentSplitSheet: {
+            entries: true,
+          },
         },
       });
 
@@ -841,12 +848,7 @@ export class SongsService {
       // Get file paths
       const filePaths = await this.getFilePaths(song);
 
-      // Get split sheet information if available
-      const splitSheetInfo = await this.splitSheetService.getSplitSheetBySongId(
-        song.id,
-      );
-
-      // Create response object with file paths and split sheet info
+      // Create response object with file paths and collaborators
       const response = {
         ...song,
         coverArtPath: filePaths.coverArtPath,
@@ -854,8 +856,8 @@ export class SongsService {
         mixVersions: filePaths.mixVersions,
         previewClip: filePaths.previewClip,
         musicVideo: filePaths.musicVideo,
-        currentSplitSheetId: splitSheetInfo?.currentSplitSheetId || null,
-        currentSplitSheet: splitSheetInfo?.currentSplitSheet || ({} as any),
+        currentSplitSheetId: song.currentSplitSheet?.id || null,
+        currentSplitSheet: song.currentSplitSheet || null,
       };
 
       return {
@@ -1066,17 +1068,16 @@ export class SongsService {
         .leftJoinAndSelect('song.featuredPlatformArtists', 'featuredArtists')
         .leftJoinAndSelect('song.featuredTempArtists', 'tempArtists')
         .leftJoinAndSelect('song.releaseContainer', 'releaseContainer')
+        .leftJoinAndSelect('song.collaborators', 'collaborators')
+        .leftJoinAndSelect('song.currentSplitSheet', 'currentSplitSheet')
+        .leftJoinAndSelect('currentSplitSheet.entries', 'entries')
         .where('song.uploadedById = :userId', { userId: user.id })
         .getMany();
 
-      // Get file paths and split sheet info for each song
+      // Get file paths and collaborators for each song
       const songsWithPaths = await Promise.all(
         songs.map(async (song) => {
           const filePaths = await this.getFilePaths(song);
-
-          // Get split sheet information if available
-          const splitSheetInfo =
-            await this.splitSheetService.getSplitSheetBySongId(song.id);
 
           return {
             ...song,
@@ -1085,8 +1086,8 @@ export class SongsService {
             mixVersions: filePaths.mixVersions,
             previewClip: filePaths.previewClip,
             musicVideo: filePaths.musicVideo,
-            currentSplitSheetId: splitSheetInfo?.currentSplitSheetId || null,
-            currentSplitSheet: splitSheetInfo?.currentSplitSheet || ({} as any),
+            currentSplitSheetId: song.currentSplitSheet?.id || null,
+            currentSplitSheet: song.currentSplitSheet || null,
           };
         }),
       );
@@ -1243,6 +1244,9 @@ export class SongsService {
         .leftJoinAndSelect('song.featuredPlatformArtists', 'featuredArtists')
         .leftJoinAndSelect('song.featuredTempArtists', 'tempArtists')
         .leftJoinAndSelect('song.releaseContainer', 'releaseContainer')
+        .leftJoinAndSelect('song.collaborators', 'collaborators')
+        .leftJoinAndSelect('song.currentSplitSheet', 'currentSplitSheet')
+        .leftJoinAndSelect('currentSplitSheet.entries', 'entries')
         .leftJoinAndSelect('song.splitsHistory', 'splitsHistory')
         .leftJoinAndSelect('splitsHistory.entries', 'splitEntries')
         .where('primaryArtist.id = :artistId', { artistId: cleanedArtistId })
@@ -1261,13 +1265,10 @@ export class SongsService {
         };
       }
 
-      // Get file paths for each song
+      // Get file paths and collaborators for each song
       const songsWithPaths = await Promise.all(
         songs.map(async (song) => {
           const filePaths = await this.getFilePaths(song);
-          // Get split sheet information if available
-          const splitSheetInfo =
-            await this.splitSheetService.getSplitSheetBySongId(song.id);
 
           return {
             ...song,
@@ -1276,8 +1277,8 @@ export class SongsService {
             mixVersions: filePaths.mixVersions,
             previewClip: filePaths.previewClip,
             musicVideo: filePaths.musicVideo,
-            currentSplitSheetId: splitSheetInfo?.currentSplitSheetId || null,
-            currentSplitSheet: splitSheetInfo?.currentSplitSheet || ({} as any),
+            currentSplitSheetId: song.currentSplitSheet?.id || null,
+            currentSplitSheet: song.currentSplitSheet || null,
           };
         }),
       );

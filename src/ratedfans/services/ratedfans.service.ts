@@ -6,6 +6,7 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  HttpException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
@@ -71,157 +72,151 @@ export class RatedFansService {
     createPageDto: CreatePageDto,
     user: User,
   ): Promise<ApiResponse<DashboardPageResponseDto>> {
-    try {
-      this.logger.log(
-        `Creating RatedFans page "${createPageDto.releaseTitle}" by user ${user.id}`,
+    this.logger.log(
+      `Creating RatedFans page "${createPageDto.releaseTitle}" by user ${user.id}`,
+    );
+
+    if (!createPageDto.artistName?.trim()) {
+      throw new HttpException(
+        'Artist name is required',
+        HttpStatus.BAD_REQUEST,
       );
-
-      if (!createPageDto.artistName?.trim()) {
-        throw new BadRequestException('Artist name is required');
-      }
-
-      let song: Song | null = null;
-      let artist: Artist;
-
-      // Step 1: Handle distributed songs (with songId) vs platform songs (without songId)
-      if (createPageDto.songId) {
-        // Distributed song - validate song exists and user owns it
-        song = await this.songRepository.findOne({
-          where: { id: createPageDto.songId },
-          relations: ['primaryArtist', 'primaryArtist.user'],
-        });
-
-        if (!song) {
-          return {
-            statusCode: HttpStatus.NOT_FOUND,
-            message: 'Song not found',
-          };
-        }
-
-        // Get user's artist profiles to validate ownership
-        const userWithArtists = await this.userRepository.findOne({
-          where: { id: user.id },
-          relations: ['artistProfiles'],
-        });
-
-        const userArtistIds =
-          userWithArtists?.artistProfiles?.map((a) => a.id) || [];
-
-        // Validate user owns the song through upload or artist relationship
-        if (
-          song.uploadedById !== user.id &&
-          !userArtistIds.includes(song.primaryArtist?.id)
-        ) {
-          return {
-            statusCode: HttpStatus.FORBIDDEN,
-            message:
-              'You do not have permission to create a page for this song',
-          };
-        }
-
-        // Check if page already exists for this song
-        const existingPage = await this.pageRepository.findOne({
-          where: { songId: createPageDto.songId },
-        });
-
-        if (existingPage) {
-          return {
-            statusCode: HttpStatus.CONFLICT,
-            message: 'A RatedFans page already exists for this song',
-          };
-        }
-
-        artist = song.primaryArtist;
-      } else {
-        // Platform song - get user's first artist profile
-        const userWithArtists = await this.userRepository.findOne({
-          where: { id: user.id },
-          relations: ['artistProfiles'],
-        });
-
-        if (!userWithArtists?.artistProfiles?.length) {
-          return {
-            statusCode: HttpStatus.BAD_REQUEST,
-            message:
-              'You must have an artist profile to create a RatedFans page',
-          };
-        }
-
-        if (createPageDto.releaseDate) {
-          const releaseDate = new Date(createPageDto.releaseDate);
-          const now = new Date();
-
-          if (releaseDate < now) {
-            return {
-              statusCode: HttpStatus.BAD_REQUEST,
-              message: 'Release date cannot be in the past',
-            };
-          }
-        }
-
-        artist = userWithArtists.artistProfiles[0];
-      }
-
-      // Step 2: Update artist social media if provided
-      if (createPageDto.artistSocialMediaLinks) {
-        artist.socialMediaLinks = {
-          ...artist.socialMediaLinks,
-          ...createPageDto.artistSocialMediaLinks,
-        };
-        await this.artistRepository.save(artist);
-      }
-
-      // Step 3: Generate unique slug
-      let slug = createPageDto.customSlug;
-      if (!slug) {
-        const slugSource = song ? song.title : createPageDto.releaseTitle;
-        slug = this.generateSlug(artist.name, slugSource);
-      }
-
-      // Ensure slug uniqueness by appending number if needed
-      slug = await this.ensureUniqueSlug(slug);
-
-      // Step 4: Create the page
-      const newPage = this.pageRepository.create({
-        releaseTitle: createPageDto.releaseTitle,
-        artistName: createPageDto.artistName,
-        slug,
-        songId: song?.id || null, // Null for platform songs
-        artistId: artist.id,
-        isPresaveEnabled: createPageDto.isPresaveEnabled || false,
-        releaseDate:
-          createPageDto.releaseDate || song?.proposedReleaseDate || null,
-        releaseType: createPageDto.releaseType,
-        socialMediaLinks: createPageDto.socialMediaLinks,
-        previewClips: createPageDto.previewClips,
-        coverArtLink: createPageDto.coverArtLink,
-        isPublished: false, // New pages start as drafts
-      });
-
-      const savedPage = await this.pageRepository.save(newPage);
-
-      // Step 5: Return complete page data with relationships
-      const pageWithRelations = await this.pageRepository.findOne({
-        where: { id: savedPage.id },
-        relations: ['artist', 'song', 'links'],
-      });
-
-      const pageType = song ? 'distributed song' : 'platform song';
-      return {
-        statusCode: HttpStatus.CREATED,
-        message: `RatedFans page created successfully`,
-        data: await this.transformToDashboardResponse(pageWithRelations),
-      };
-    } catch (error) {
-      this.logger.error(
-        `Failed to create RatedFans page: ${error.message}`,
-        error.stack,
-      );
-      return {
-        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-        message: 'An error occurred while creating the page',
-      };
     }
+
+    let song: Song | null = null;
+    let artist: Artist;
+
+    // Step 1: Handle distributed songs (with songId) vs platform songs (without songId)
+    if (createPageDto.songId) {
+      // Distributed song - validate song exists and user owns it
+      song = await this.songRepository.findOne({
+        where: { id: createPageDto.songId },
+        relations: ['primaryArtist', 'primaryArtist.user'],
+      });
+
+      if (!song) {
+        throw new HttpException('Song not found', HttpStatus.NOT_FOUND);
+      }
+
+      // Get user's artist profiles to validate ownership
+      const userWithArtists = await this.userRepository.findOne({
+        where: { id: user.id },
+        relations: ['artistProfiles'],
+      });
+
+      const userArtistIds =
+        userWithArtists?.artistProfiles?.map((a) => a.id) || [];
+
+      // Validate user owns the song through upload or artist relationship
+      if (
+        song.uploadedById !== user.id &&
+        !userArtistIds.includes(song.primaryArtist?.id)
+      ) {
+        throw new HttpException(
+          'You do not have permission to create a page for this song',
+          HttpStatus.FORBIDDEN,
+        );
+      }
+
+      // Check if page already exists for this song
+      const existingPage = await this.pageRepository.findOne({
+        where: { songId: createPageDto.songId },
+      });
+
+      if (existingPage) {
+        throw new HttpException(
+          'A RatedFans page already exists for this song',
+          HttpStatus.CONFLICT,
+        );
+      }
+
+      artist = song.primaryArtist;
+    } else {
+      // Platform song - get user's first artist profile
+      const userWithArtists = await this.userRepository.findOne({
+        where: { id: user.id },
+        relations: ['artistProfiles'],
+      });
+
+      if (!userWithArtists?.artistProfiles?.length) {
+        throw new HttpException(
+          'You must have an artist profile to create a RatedFans page',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      if (createPageDto.releaseDate) {
+        const releaseDate = new Date(createPageDto.releaseDate);
+        const now = new Date();
+
+        if (releaseDate < now) {
+          throw new HttpException(
+            'Release date cannot be in the past',
+            HttpStatus.BAD_REQUEST,
+          );
+        }
+      }
+
+      artist = userWithArtists.artistProfiles[0];
+    }
+
+    // Step 2: Update artist social media if provided
+    if (createPageDto.artistSocialMediaLinks) {
+      artist.socialMediaLinks = {
+        ...artist.socialMediaLinks,
+        ...createPageDto.artistSocialMediaLinks,
+      };
+      await this.artistRepository.save(artist);
+    }
+
+    // Step 3: Generate and validate slug
+    let slug = createPageDto.customSlug;
+    if (!slug) {
+      const slugSource = song ? song.title : createPageDto.releaseTitle;
+      slug = this.generateSlug(artist.name, slugSource);
+    }
+
+    // Check if slug already exists - reject duplicates
+    const existingPage = await this.pageRepository.findOne({ where: { slug } });
+    if (existingPage) {
+      throw new HttpException(
+        `Slug "${slug}" is already taken. Please choose a different custom slug.`,
+        HttpStatus.CONFLICT,
+      );
+    }
+
+    // Step 4: Create the page
+    const newPage = this.pageRepository.create({
+      releaseTitle: createPageDto.releaseTitle,
+      artistName: createPageDto.artistName,
+      slug,
+      songId: song?.id || null, // Null for platform songs
+      artistId: artist.id,
+      isPresaveEnabled: createPageDto.isPresaveEnabled || false,
+      releaseDate:
+        createPageDto.releaseDate || song?.proposedReleaseDate || null,
+      releaseType: createPageDto.releaseType,
+      socialMediaLinks: createPageDto.socialMediaLinks,
+      previewClips: createPageDto.previewClips,
+      coverArtLink: createPageDto.coverArtLink,
+      isPublished: false, // New pages start as drafts
+    });
+
+    const savedPage = await this.pageRepository.save(newPage);
+
+    // Step 5: Return complete page data with relationships
+    // 2025-01-23 00:13: Include featured artists relations for contributors
+    const pageWithRelations = await this.pageRepository.findOne({
+      where: { id: savedPage.id },
+      relations: ['artist', 'song', 'links'],
+    });
+
+    const pageType = song ? 'distributed song' : 'platform song';
+    return {
+      statusCode: HttpStatus.CREATED,
+      message: `RatedFans page created successfully`,
+      data: await this.transformToDashboardResponse(pageWithRelations),
+    };
   }
 
   /**
@@ -236,95 +231,114 @@ export class RatedFansService {
   async findPageBySlug(
     slug: string,
   ): Promise<ApiResponse<PublicPageResponseDto>> {
-    try {
-      this.logger.log(`Retrieving page by slug: ${slug}`);
+    this.logger.log(`Retrieving page by slug: ${slug}`);
 
-      // Find page with all relationships needed for public display
-      const page = await this.pageRepository.findOne({
-        where: {
-          slug,
-          isPublished: true, // Only show published pages to public
-        },
-        relations: ['artist', 'song', 'links'],
-      });
+    // Find page with all relationships needed for public display
+    const page = await this.pageRepository.findOne({
+      where: {
+        slug,
+        isPublished: true, // Only show published pages to public
+      },
+      relations: ['artist', 'song', 'links'],
+    });
 
-      if (!page) {
-        return {
-          statusCode: HttpStatus.NOT_FOUND,
-          message: 'Page not found or not published',
-        };
-      }
-
-      // Transform to public response format
-      const publicResponse = await this.transformToPublicResponse(page);
-
-      return {
-        statusCode: HttpStatus.OK,
-        message: 'Page retrieved successfully',
-        data: publicResponse,
-      };
-    } catch (error) {
-      this.logger.error(
-        `Failed to retrieve page by slug ${slug}: ${error.message}`,
-        error.stack,
+    if (!page) {
+      throw new HttpException(
+        'Page not found or not published',
+        HttpStatus.NOT_FOUND,
       );
+    }
+
+    // Transform to public response format
+    const publicResponse = await this.transformToPublicResponse(page);
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Page retrieved successfully',
+      data: publicResponse,
+    };
+  }
+
+  /**
+   * 2025-01-22 23:47: New method for direct /:slug endpoint
+   * Retrieves a RatedFans page by slug and returns appropriate status based on publication state
+   * Returns 404 if page doesn't exist, 403 if unpublished, or page data if published
+   */
+  async findPageBySlugDirect(
+    slug: string,
+  ): Promise<ApiResponse<PublicPageResponseDto>> {
+    this.logger.log(`Retrieving page by slug (direct access): ${slug}`);
+
+    // 2025-01-22 23:47: Find page without isPublished filter to check existence first
+    const page = await this.pageRepository.findOne({
+      where: {
+        slug,
+      },
+      relations: ['artist', 'song', 'links'],
+    });
+
+    // 2025-01-22 23:47: Page doesn't exist at all
+    if (!page) {
       return {
-        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-        message: 'An error occurred while retrieving the page',
+        statusCode: HttpStatus.NOT_FOUND,
+        message: 'Page not found',
       };
     }
+
+    // 2025-01-22 23:47: Page exists but is not published
+    if (!page.isPublished) {
+      return {
+        statusCode: HttpStatus.FORBIDDEN,
+        message: 'This page is not published yet',
+      };
+    }
+
+    // 2025-01-22 23:47: Page is published, return full details
+    const publicResponse = await this.transformToPublicResponse(page);
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Page retrieved successfully',
+      data: publicResponse,
+    };
   }
 
   /**
    * Gets active streaming links for a page by slug (public endpoint)
    */
   async getPageLinks(slug: string): Promise<ApiResponse<PageLinkDto[]>> {
-    try {
-      // Find published page and get active links
-      const page = await this.pageRepository.findOne({
-        where: { slug, isPublished: true },
-        relations: ['links'],
-      });
+    // Find published page and get active links
+    const page = await this.pageRepository.findOne({
+      where: { slug, isPublished: true },
+      relations: ['links'],
+    });
 
-      if (!page) {
-        return {
-          statusCode: HttpStatus.NOT_FOUND,
-          message: 'Page not found',
-        };
-      }
-
-      // Filter and sort active links
-      const activeLinks = page.links
-        .filter((link) => link.isActive)
-        .sort((a, b) => {
-          // Primary links first, then by display order
-          if (a.isPrimary && !b.isPrimary) return -1;
-          if (!a.isPrimary && b.isPrimary) return 1;
-          return (a.displayOrder || 99) - (b.displayOrder || 99);
-        })
-        .map((link) => ({
-          id: link.id,
-          platform: link.platform,
-          url: link.url,
-          isPrimary: link.isPrimary,
-          displayOrder: link.displayOrder,
-        }));
-
-      return {
-        statusCode: HttpStatus.OK,
-        message: 'Links retrieved successfully',
-        data: activeLinks,
-      };
-    } catch (error) {
-      this.logger.error(
-        `Failed to get page links for ${slug}: ${error.message}`,
-        error.stack,
-      );
-      return {
-        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-        message: 'An error occurred while retrieving links',
-      };
+    if (!page) {
+      throw new HttpException('Page not found', HttpStatus.NOT_FOUND);
     }
+
+    // Filter and sort active links
+    const activeLinks = page.links
+      .filter((link) => link.isActive)
+      .sort((a, b) => {
+        // Primary links first, then by display order
+        if (a.isPrimary && !b.isPrimary) return -1;
+        if (!a.isPrimary && b.isPrimary) return 1;
+        return (a.displayOrder || 99) - (b.displayOrder || 99);
+      })
+      .map((link) => ({
+        id: link.id,
+        platform: link.platform,
+        url: link.url,
+        isPrimary: link.isPrimary,
+        displayOrder: link.displayOrder,
+      }));
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Links retrieved successfully',
+      data: activeLinks,
+    };
   }
 
   /**
@@ -335,49 +349,30 @@ export class RatedFansService {
     query: RedirectQueryDto,
     res: Response,
   ): Promise<void> {
-    try {
-      // Find the page and specific platform link
-      const page = await this.pageRepository.findOne({
-        where: { slug, isPublished: true },
-        relations: ['links'],
-      });
+    // Find the page and specific platform link
+    const page = await this.pageRepository.findOne({
+      where: { slug, isPublished: true },
+      relations: ['links'],
+    });
 
-      if (!page) {
-        res.status(HttpStatus.NOT_FOUND).json({
-          statusCode: HttpStatus.NOT_FOUND,
-          message: 'Page not found',
-        });
-        return;
-      }
-
-      // Find the specific platform link
-      const platformLink = page.links.find(
-        (link) => link.platform === query.platform && link.isActive,
-      );
-
-      if (!platformLink) {
-        res.status(HttpStatus.NOT_FOUND).json({
-          statusCode: HttpStatus.NOT_FOUND,
-          message: 'Platform link not found',
-        });
-        return;
-      }
-
-      // TODO: Add click tracking here when analytics are implemented
-      this.logger.log(`Redirecting to ${query.platform} for page ${slug}`);
-
-      // Perform redirect
-      res.redirect(302, platformLink.url);
-    } catch (error) {
-      this.logger.error(
-        `Failed to redirect for ${slug}: ${error.message}`,
-        error.stack,
-      );
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-        message: 'An error occurred during redirect',
-      });
+    if (!page) {
+      throw new HttpException('Page not found', HttpStatus.NOT_FOUND);
     }
+
+    // Find the specific platform link
+    const platformLink = page.links.find(
+      (link) => link.platform === query.platform && link.isActive,
+    );
+
+    if (!platformLink) {
+      throw new HttpException('Platform link not found', HttpStatus.NOT_FOUND);
+    }
+
+    // TODO: Add click tracking here when analytics are implemented
+    this.logger.log(`Redirecting to ${query.platform} for page ${slug}`);
+
+    // Perform redirect
+    res.redirect(302, platformLink.url);
   }
 
   /**
@@ -387,83 +382,72 @@ export class RatedFansService {
     userId: string,
     query: PageListQueryDto,
   ): Promise<ApiResponse<PageListItemDto[]>> {
-    try {
-      this.logger.log(`Getting pages for user ${userId}`);
+    this.logger.log(`Getting pages for user ${userId}`);
 
-      // Parse pagination parameters
-      const page = query.page || 1;
-      const limit = Math.min(query.limit || 10, 100); // Cap at 100
-      const skip = (page - 1) * limit;
+    // Parse pagination parameters
+    const page = query.page || 1;
+    const limit = Math.min(query.limit || 10, 100); // Cap at 100
+    const skip = (page - 1) * limit;
 
-      // Build query for user's pages through artist relationship
-      const queryBuilder = this.pageRepository
-        .createQueryBuilder('page')
-        .leftJoinAndSelect('page.artist', 'artist')
-        .leftJoinAndSelect('page.song', 'song')
-        .leftJoinAndSelect('page.links', 'links')
-        .where('artist.user.id = :userId', { userId })
-        .skip(skip)
-        .take(limit);
+    // Build query for user's pages through artist relationship
+    const queryBuilder = this.pageRepository
+      .createQueryBuilder('page')
+      .leftJoinAndSelect('page.artist', 'artist')
+      .leftJoinAndSelect('page.song', 'song')
+      .leftJoinAndSelect('page.links', 'links')
+      .where('artist.user.id = :userId', { userId })
+      .skip(skip)
+      .take(limit);
 
-      // Add search filter if provided
-      if (query.search) {
-        queryBuilder.andWhere(
-          '(LOWER(page.title) LIKE LOWER(:search) OR LOWER(song.title) LIKE LOWER(:search))',
-          { search: `%${query.search}%` },
-        );
-      }
-
-      // Add status filter
-      if (query.status === 'published') {
-        queryBuilder.andWhere('page.isPublished = :published', {
-          published: true,
-        });
-      } else if (query.status === 'draft') {
-        queryBuilder.andWhere('page.isPublished = :published', {
-          published: false,
-        });
-      }
-
-      // Add sorting
-      const sortField = query.sortBy || 'createdAt';
-      const sortOrder = query.sortOrder || 'DESC';
-      queryBuilder.orderBy(`page.${sortField}`, sortOrder);
-
-      // Execute query
-      const [pages, total] = await queryBuilder.getManyAndCount();
-
-      // Transform to list items
-      const baseUrl = process.env.API_BASE_URL || 'http://localhost:3000';
-      const listItems: PageListItemDto[] = pages.map((page) => ({
-        id: page.id,
-        slug: page.slug,
-        pageUrl: `${baseUrl}/r/${page.slug}`, // Full URL to access the page
-        releaseTitle: page.releaseTitle, // 2024-09-22: change: updated field name
-        isPublished: page.isPublished,
-        isPresaveEnabled: page.isPresaveEnabled,
-        createdAt: page.createdAt,
-        updatedAt: page.updatedAt,
-        songTitle: page.song.title,
-        artistName: page.artist.name,
-        totalLinks: page.links?.length || 0,
-        // TODO: Add totalPresaves when presave stats are implemented
-      }));
-
-      return {
-        statusCode: HttpStatus.OK,
-        message: 'Pages retrieved successfully',
-        data: listItems,
-      };
-    } catch (error) {
-      this.logger.error(
-        `Failed to get pages for user ${userId}: ${error.message}`,
-        error.stack,
+    // Add search filter if provided
+    if (query.search) {
+      queryBuilder.andWhere(
+        '(LOWER(page.title) LIKE LOWER(:search) OR LOWER(song.title) LIKE LOWER(:search))',
+        { search: `%${query.search}%` },
       );
-      return {
-        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-        message: 'An error occurred while retrieving pages',
-      };
     }
+
+    // Add status filter
+    if (query.status === 'published') {
+      queryBuilder.andWhere('page.isPublished = :published', {
+        published: true,
+      });
+    } else if (query.status === 'draft') {
+      queryBuilder.andWhere('page.isPublished = :published', {
+        published: false,
+      });
+    }
+
+    // Add sorting
+    const sortField = query.sortBy || 'createdAt';
+    const sortOrder = query.sortOrder || 'DESC';
+    queryBuilder.orderBy(`page.${sortField}`, sortOrder);
+
+    // Execute query
+    const [pages, total] = await queryBuilder.getManyAndCount();
+
+    // Transform to list items
+    const baseUrl = process.env.API_BASE_URL || 'http://localhost:3000';
+    const listItems: PageListItemDto[] = pages.map((page) => ({
+      id: page.id,
+      slug: page.slug,
+      pageUrl: `${baseUrl}/r/${page.slug}`, // Full URL to access the page
+      releaseTitle: page.releaseTitle, // 2024-09-22: change: updated field name
+      isPublished: page.isPublished,
+      isPresaveEnabled: page.isPresaveEnabled,
+      createdAt: page.createdAt,
+      updatedAt: page.updatedAt,
+      songTitle: page.song.title,
+      artistName: page.artist.name,
+      totalLinks: page.links?.length || 0,
+      // TODO: Add totalPresaves when presave stats are implemented
+    }));
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Pages retrieved successfully',
+      data: listItems,
+    };
   }
 
   /**
@@ -480,111 +464,97 @@ export class RatedFansService {
     updateLinksDto: BulkUpdateLinksDto,
     user: User,
   ): Promise<ApiResponse<PageLinkDto[]>> {
-    try {
-      this.logger.log(
-        `Updating links for page ${pageId} with ${updateLinksDto.links.length} links`,
-      );
+    this.logger.log(
+      `Updating links for page ${pageId} with ${updateLinksDto.links.length} links`,
+    );
 
-      // Step 1: Validate page exists and user owns it
-      const page = await this.pageRepository.findOne({
-        where: { id: pageId },
-        relations: ['artist', 'artist.user', 'links'],
-      });
+    // Step 1: Validate page exists and user owns it
+    const page = await this.pageRepository.findOne({
+      where: { id: pageId },
+      relations: ['artist', 'artist.user', 'links'],
+    });
 
-      if (!page) {
-        return {
-          statusCode: HttpStatus.NOT_FOUND,
-          message: 'Page not found',
-        };
-      }
-
-      if (page.artist?.user?.id !== user.id) {
-        return {
-          statusCode: HttpStatus.FORBIDDEN,
-          message: 'You can only update links for your own pages',
-        };
-      }
-
-      // Step 2: Validate no platform duplicates in new links
-      const platforms = updateLinksDto.links.map((link) => link.platform);
-      const duplicates = platforms.filter(
-        (platform, index) => platforms.indexOf(platform) !== index,
-      );
-
-      if (duplicates.length > 0) {
-        return {
-          statusCode: HttpStatus.BAD_REQUEST,
-          message: `Duplicate platforms found: ${duplicates.join(', ')}`,
-        };
-      }
-
-      // Step 3: Handle existing links
-      if (updateLinksDto.replaceExisting) {
-        // Remove all existing links for this page
-        await this.linkRepository.delete({ pageId });
-        this.logger.log(`Removed existing links for page ${pageId}`);
-      } else {
-        // Remove only links for platforms being updated
-        const platformsToUpdate = updateLinksDto.links.map(
-          (link) => link.platform,
-        );
-        if (platformsToUpdate.length > 0) {
-          await this.linkRepository.delete({
-            pageId,
-            platform: In(platformsToUpdate),
-          });
-          this.logger.log(
-            `Updated existing links for platforms: ${platformsToUpdate.join(', ')}`,
-          );
-        }
-      }
-
-      // Step 4: Create new links
-      const newLinks = updateLinksDto.links.map((linkDto) =>
-        this.linkRepository.create({
-          pageId,
-          platform: linkDto.platform,
-          url: linkDto.url,
-          releaseDate: linkDto.releaseDate, // 2024-12-28: change: added release date for presave
-          isPrimary: false, // 2024-12-28: Auto-managed, no longer in DTO
-          displayOrder: null, // 2024-12-28: Auto-managed, no longer in DTO
-          isActive: true, // New links are active by default
-        }),
-      );
-
-      const savedLinks = await this.linkRepository.save(newLinks);
-
-      // Step 5: Transform to response DTOs and sort
-      const linkDtos: PageLinkDto[] = savedLinks
-        .sort((a, b) => {
-          // Primary links first, then by display order
-          if (a.isPrimary && !b.isPrimary) return -1;
-          if (!a.isPrimary && b.isPrimary) return 1;
-          return (a.displayOrder || 99) - (b.displayOrder || 99);
-        })
-        .map((link) => ({
-          id: link.id,
-          platform: link.platform,
-          url: link.url,
-          isPrimary: link.isPrimary,
-          displayOrder: link.displayOrder,
-        }));
-
-      return {
-        statusCode: HttpStatus.OK,
-        message: `Successfully updated ${savedLinks.length} streaming links`,
-        data: linkDtos,
-      };
-    } catch (error) {
-      this.logger.error(
-        `Failed to update links for page ${pageId}: ${error.message}`,
-        error.stack,
-      );
-      return {
-        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-        message: 'An error occurred while updating page links',
-      };
+    if (!page) {
+      throw new HttpException('Page not found', HttpStatus.NOT_FOUND);
     }
+
+    if (page.artist?.user?.id !== user.id) {
+      throw new HttpException(
+        'You can only update links for your own pages',
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    // Step 2: Validate no platform duplicates in new links
+    const platforms = updateLinksDto.links.map((link) => link.platform);
+    const duplicates = platforms.filter(
+      (platform, index) => platforms.indexOf(platform) !== index,
+    );
+
+    if (duplicates.length > 0) {
+      throw new HttpException(
+        `Duplicate platforms found: ${duplicates.join(', ')}`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    // Step 3: Handle existing links
+    if (updateLinksDto.replaceExisting) {
+      // Remove all existing links for this page
+      await this.linkRepository.delete({ pageId });
+      this.logger.log(`Removed existing links for page ${pageId}`);
+    } else {
+      // Remove only links for platforms being updated
+      const platformsToUpdate = updateLinksDto.links.map(
+        (link) => link.platform,
+      );
+      if (platformsToUpdate.length > 0) {
+        await this.linkRepository.delete({
+          pageId,
+          platform: In(platformsToUpdate),
+        });
+        this.logger.log(
+          `Updated existing links for platforms: ${platformsToUpdate.join(', ')}`,
+        );
+      }
+    }
+
+    // Step 4: Create new links
+    const newLinks = updateLinksDto.links.map((linkDto) =>
+      this.linkRepository.create({
+        pageId,
+        platform: linkDto.platform,
+        url: linkDto.url,
+        releaseDate: linkDto.releaseDate, // 2024-12-28: change: added release date for presave
+        isPrimary: false, // 2024-12-28: Auto-managed, no longer in DTO
+        displayOrder: null, // 2024-12-28: Auto-managed, no longer in DTO
+        isActive: true, // New links are active by default
+      }),
+    );
+
+    const savedLinks = await this.linkRepository.save(newLinks);
+
+    // Step 5: Transform to response DTOs and sort
+    const linkDtos: PageLinkDto[] = savedLinks
+      .sort((a, b) => {
+        // Primary links first, then by display order
+        if (a.isPrimary && !b.isPrimary) return -1;
+        if (!a.isPrimary && b.isPrimary) return 1;
+        return (a.displayOrder || 99) - (b.displayOrder || 99);
+      })
+      .map((link) => ({
+        id: link.id,
+        platform: link.platform,
+        url: link.url,
+        isPrimary: link.isPrimary,
+        displayOrder: link.displayOrder,
+      }));
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: `Successfully updated ${savedLinks.length} streaming links`,
+      data: linkDtos,
+    };
   }
 
   /**
@@ -602,108 +572,94 @@ export class RatedFansService {
     updatePageDto: any, // UpdatePageDto
     user: User,
   ): Promise<ApiResponse<any>> {
-    try {
-      // Find the page
-      const page = await this.pageRepository.findOne({
-        where: { id: pageId },
-        relations: ['artist'],
-      });
+    // Find the page
+    const page = await this.pageRepository.findOne({
+      where: { id: pageId },
+      relations: ['artist'],
+    });
 
-      if (!page) {
-        return {
-          statusCode: HttpStatus.NOT_FOUND,
-          message: 'Page not found',
-        };
-      }
-
-      // Check ownership
-      const userWithArtists = await this.userRepository.findOne({
-        where: { id: user.id },
-        relations: ['artistProfiles'],
-      });
-
-      const userArtistIds =
-        userWithArtists?.artistProfiles?.map((a) => a.id) || [];
-
-      if (!userArtistIds.includes(page.artistId)) {
-        return {
-          statusCode: HttpStatus.FORBIDDEN,
-          message: 'You do not have permission to update this page',
-        };
-      }
-
-      // Update the page
-      Object.assign(page, updatePageDto);
-
-      // If slug is being updated, ensure uniqueness
-      if (updatePageDto.customSlug && updatePageDto.customSlug !== page.slug) {
-        page.slug = await this.ensureUniqueSlug(updatePageDto.customSlug);
-      }
-
-      const savedPage = await this.pageRepository.save(page);
-      const transformedPage =
-        await this.transformToDashboardResponse(savedPage);
-
-      return {
-        statusCode: HttpStatus.OK,
-        message: 'Page updated successfully',
-        data: transformedPage,
-      };
-    } catch (error) {
-      this.logger.error('Error updating page:', error);
-      return {
-        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-        message: 'Failed to update page',
-      };
+    if (!page) {
+      throw new HttpException('Page not found', HttpStatus.NOT_FOUND);
     }
+
+    // Check ownership
+    const userWithArtists = await this.userRepository.findOne({
+      where: { id: user.id },
+      relations: ['artistProfiles'],
+    });
+
+    const userArtistIds =
+      userWithArtists?.artistProfiles?.map((a) => a.id) || [];
+
+    if (!userArtistIds.includes(page.artistId)) {
+      throw new HttpException(
+        'You do not have permission to update this page',
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    // Update the page
+    Object.assign(page, updatePageDto);
+
+    // If slug is being updated, check for duplicates
+    if (updatePageDto.customSlug && updatePageDto.customSlug !== page.slug) {
+      const existingPage = await this.pageRepository.findOne({
+        where: { slug: updatePageDto.customSlug },
+      });
+      if (existingPage) {
+        throw new HttpException(
+          `Slug "${updatePageDto.customSlug}" is already taken. Please choose a different slug.`,
+          HttpStatus.CONFLICT,
+        );
+      }
+      page.slug = updatePageDto.customSlug;
+    }
+
+    const savedPage = await this.pageRepository.save(page);
+    const transformedPage = await this.transformToDashboardResponse(savedPage);
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Page updated successfully',
+      data: transformedPage,
+    };
   }
 
   // 2024-12-28: Added delete method for RatedFans pages
   async deletePage(pageId: string, user: User): Promise<ApiResponse> {
-    try {
-      // Find the page
-      const page = await this.pageRepository.findOne({
-        where: { id: pageId },
-        relations: ['artist'],
-      });
+    // Find the page
+    const page = await this.pageRepository.findOne({
+      where: { id: pageId },
+      relations: ['artist'],
+    });
 
-      if (!page) {
-        return {
-          statusCode: HttpStatus.NOT_FOUND,
-          message: 'Page not found',
-        };
-      }
-
-      // Check ownership
-      const userWithArtists = await this.userRepository.findOne({
-        where: { id: user.id },
-        relations: ['artistProfiles'],
-      });
-
-      const userArtistIds =
-        userWithArtists?.artistProfiles?.map((a) => a.id) || [];
-
-      if (!userArtistIds.includes(page.artistId)) {
-        return {
-          statusCode: HttpStatus.FORBIDDEN,
-          message: 'You do not have permission to delete this page',
-        };
-      }
-
-      // Soft delete the page
-      await this.pageRepository.softDelete(pageId);
-
-      return {
-        statusCode: HttpStatus.OK,
-        message: 'Page deleted successfully',
-      };
-    } catch (error) {
-      this.logger.error('Error deleting page:', error);
-      return {
-        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-        message: 'Failed to delete page',
-      };
+    if (!page) {
+      throw new HttpException('Page not found', HttpStatus.NOT_FOUND);
     }
+
+    // Check ownership
+    const userWithArtists = await this.userRepository.findOne({
+      where: { id: user.id },
+      relations: ['artistProfiles'],
+    });
+
+    const userArtistIds =
+      userWithArtists?.artistProfiles?.map((a) => a.id) || [];
+
+    if (!userArtistIds.includes(page.artistId)) {
+      throw new HttpException(
+        'You do not have permission to delete this page',
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    // Soft delete the page
+    await this.pageRepository.softDelete(pageId);
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Page deleted successfully',
+    };
   }
 
   async togglePagePublication(
@@ -711,74 +667,59 @@ export class RatedFansService {
     publishDto: PublishPageDto,
     user: User,
   ): Promise<ApiResponse<DashboardPageResponseDto>> {
-    try {
-      this.logger.log(
-        `Toggling publication for page ${pageId} to ${publishDto.isPublished}`,
-      );
+    this.logger.log(
+      `Toggling publication for page ${pageId} to ${publishDto.isPublished}`,
+    );
 
-      // Step 1: Find page and validate ownership
-      const page = await this.pageRepository.findOne({
-        where: { id: pageId },
-        relations: ['artist', 'artist.user', 'song', 'links'],
-      });
+    // Step 1: Find page and validate ownership
+    const page = await this.pageRepository.findOne({
+      where: { id: pageId },
+      relations: ['artist', 'artist.user', 'song', 'links'],
+    });
 
-      if (!page) {
-        return {
-          statusCode: HttpStatus.NOT_FOUND,
-          message: 'Page not found',
-        };
-      }
-
-      // Validate user owns the page through artist relationship
-      if (page.artist?.user?.id !== user.id) {
-        return {
-          statusCode: HttpStatus.FORBIDDEN,
-          message: 'You can only publish your own pages',
-        };
-      }
-
-      // Step 2: If publishing, check minimum requirements
-      if (publishDto.isPublished) {
-        const activeLinks = page.links?.filter((link) => link.isActive) || [];
-
-        if (activeLinks.length === 0) {
-          return {
-            statusCode: HttpStatus.BAD_REQUEST,
-            message:
-              'Cannot publish page without at least one active streaming link',
-          };
-        }
-
-        if (!page.releaseTitle || page.releaseTitle.trim().length === 0) {
-          return {
-            statusCode: HttpStatus.BAD_REQUEST,
-            message: 'Cannot publish page without a release title',
-          };
-        }
-      }
-
-      // Step 3: Update publication status
-      page.isPublished = publishDto.isPublished;
-      const updatedPage = await this.pageRepository.save(page);
-
-      // Step 4: Return updated page data
-      const responseData = await this.transformToDashboardResponse(updatedPage);
-
-      return {
-        statusCode: HttpStatus.OK,
-        message: `Page ${publishDto.isPublished ? 'published' : 'unpublished'} successfully`,
-        data: responseData,
-      };
-    } catch (error) {
-      this.logger.error(
-        `Failed to toggle publication for page ${pageId}: ${error.message}`,
-        error.stack,
-      );
-      return {
-        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-        message: 'An error occurred while updating page publication status',
-      };
+    if (!page) {
+      throw new HttpException('Page not found', HttpStatus.NOT_FOUND);
     }
+
+    // Validate user owns the page through artist relationship
+    if (page.artist?.user?.id !== user.id) {
+      throw new HttpException(
+        'You can only publish your own pages',
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    // Step 2: If publishing, check minimum requirements
+    if (publishDto.isPublished) {
+      const activeLinks = page.links?.filter((link) => link.isActive) || [];
+
+      if (activeLinks.length === 0) {
+        throw new HttpException(
+          'Cannot publish page without at least one active streaming link',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      if (!page.releaseTitle || page.releaseTitle.trim().length === 0) {
+        throw new HttpException(
+          'Cannot publish page without a release title',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+    }
+
+    // Step 3: Update publication status
+    page.isPublished = publishDto.isPublished;
+    const updatedPage = await this.pageRepository.save(page);
+
+    // Step 4: Return updated page data
+    const responseData = await this.transformToDashboardResponse(updatedPage);
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: `Page ${publishDto.isPublished ? 'published' : 'unpublished'} successfully`,
+      data: responseData,
+    };
   }
 
   /**
@@ -797,145 +738,117 @@ export class RatedFansService {
     promoUploadDto: PromoCardUploadDto,
     user: User,
   ): Promise<ApiResponse<PromoCardResponseDto>> {
-    try {
-      this.logger.log(`Saving promo card for page ${pageId}`);
+    this.logger.log(`Saving promo card for page ${pageId}`);
 
-      // Step 1: Validate page exists and user owns it
-      if (!(await this.validatePageOwnership(pageId, user.id))) {
-        return {
-          statusCode: HttpStatus.FORBIDDEN,
-          message: 'You can only save promo cards for your own pages',
-        };
-      }
-
-      // Step 2: Decode base64 image data
-      let imageBuffer: Buffer;
-      let mimeType: string;
-
-      try {
-        // Extract data from base64 data URL (e.g., "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...")
-        const base64Match = promoUploadDto.imageData.match(
-          /^data:([^;]+);base64,(.+)$/,
-        );
-
-        if (!base64Match) {
-          return {
-            statusCode: HttpStatus.BAD_REQUEST,
-            message: 'Invalid base64 image data format',
-          };
-        }
-
-        mimeType = base64Match[1];
-        const base64Data = base64Match[2];
-        imageBuffer = Buffer.from(base64Data, 'base64');
-
-        // Validate image type
-        if (!mimeType.startsWith('image/')) {
-          return {
-            statusCode: HttpStatus.BAD_REQUEST,
-            message: 'File must be an image',
-          };
-        }
-
-        // Check file size (limit to 5MB)
-        if (imageBuffer.length > 5 * 1024 * 1024) {
-          return {
-            statusCode: HttpStatus.BAD_REQUEST,
-            message: 'Image file too large (max 5MB)',
-          };
-        }
-      } catch (error) {
-        return {
-          statusCode: HttpStatus.BAD_REQUEST,
-          message: 'Failed to process image data',
-        };
-      }
-
-      // Step 3: Generate unique filename
-      const timestamp = Date.now();
-      const randomId = Math.random().toString(36).substring(2, 8);
-      const extension = mimeType.split('/')[1];
-      const fileName =
-        promoUploadDto.fileName ||
-        `promo-card-${timestamp}-${randomId}.${extension}`;
-      const uniqueFileName = `promo-cards/${pageId}/${timestamp}-${randomId}-${fileName}`;
-
-      // Step 4: Save file using StorageService provider directly
-      // Create a mock Multer file for the StorageService
-      const mockFile: Express.Multer.File = {
-        fieldname: 'promoCard',
-        originalname: fileName,
-        encoding: '7bit',
-        mimetype: mimeType,
-        size: imageBuffer.length,
-        buffer: imageBuffer,
-        destination: '',
-        filename: fileName,
-        path: '',
-        stream: null,
-      };
-
-      const uploadResult = await this.storageService.uploadFile(
-        mockFile,
-        user,
-        {
-          type: 'image',
-          metadata: {
-            originalName: promoUploadDto.fileName,
-            pageId,
-            description: promoUploadDto.description,
-            designTemplate: promoUploadDto.designMetadata?.template,
-            colors: promoUploadDto.designMetadata?.colors,
-          },
-          isPublic: false,
-        },
+    // Step 1: Validate page exists and user owns it
+    if (!(await this.validatePageOwnership(pageId, user.id))) {
+      throw new HttpException(
+        'You can only save promo cards for your own pages',
+        HttpStatus.FORBIDDEN,
       );
-
-      // Step 5: Create PromoCard record
-      const promoCard = this.promoCardRepository.create({
-        pageId,
-        fileName,
-        fileUrl: uploadResult.key || uploadResult.path, // Store the storage key/path
-        size: imageBuffer.length,
-        mimeType,
-        metadata: {
-          width: promoUploadDto.designMetadata?.dimensions?.width,
-          height: promoUploadDto.designMetadata?.dimensions?.height,
-          format: extension,
-          originalName: promoUploadDto.fileName,
-          description: promoUploadDto.description,
-        },
-      });
-
-      const savedPromoCard = await this.promoCardRepository.save(promoCard);
-
-      // Step 6: Return response with file info
-      const responseDto: PromoCardResponseDto = {
-        id: savedPromoCard.id,
-        pageId: savedPromoCard.pageId,
-        fileName: savedPromoCard.fileName,
-        fileUrl: savedPromoCard.fileUrl,
-        size: savedPromoCard.size,
-        mimeType: savedPromoCard.mimeType,
-        metadata: savedPromoCard.metadata,
-        createdAt: savedPromoCard.createdAt,
-      };
-
-      return {
-        statusCode: HttpStatus.CREATED,
-        message: 'Promo card saved successfully',
-        data: responseDto,
-      };
-    } catch (error) {
-      this.logger.error(
-        `Failed to save promo card for page ${pageId}: ${error.message}`,
-        error.stack,
-      );
-      return {
-        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-        message: 'An error occurred while saving the promo card',
-      };
     }
+
+    // Step 2: Decode base64 image data
+    // Extract data from base64 data URL (e.g., "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...")
+    const base64Match = promoUploadDto.imageData.match(
+      /^data:([^;]+);base64,(.+)$/,
+    );
+
+    if (!base64Match) {
+      throw new HttpException(
+        'Invalid base64 image data format',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const mimeType = base64Match[1];
+    const base64Data = base64Match[2];
+    const imageBuffer = Buffer.from(base64Data, 'base64');
+
+    // Validate image type
+    if (!mimeType.startsWith('image/')) {
+      throw new HttpException('File must be an image', HttpStatus.BAD_REQUEST);
+    }
+
+    // Check file size (limit to 5MB)
+    if (imageBuffer.length > 5 * 1024 * 1024) {
+      throw new HttpException(
+        'Image file too large (max 5MB)',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    // Step 3: Generate unique filename
+    const timestamp = Date.now();
+    const randomId = Math.random().toString(36).substring(2, 8);
+    const extension = mimeType.split('/')[1];
+    const fileName =
+      promoUploadDto.fileName ||
+      `promo-card-${timestamp}-${randomId}.${extension}`;
+    const uniqueFileName = `promo-cards/${pageId}/${timestamp}-${randomId}-${fileName}`;
+
+    // Step 4: Save file using StorageService provider directly
+    // Create a mock Multer file for the StorageService
+    const mockFile: Express.Multer.File = {
+      fieldname: 'promoCard',
+      originalname: fileName,
+      encoding: '7bit',
+      mimetype: mimeType,
+      size: imageBuffer.length,
+      buffer: imageBuffer,
+      destination: '',
+      filename: fileName,
+      path: '',
+      stream: null,
+    };
+
+    const uploadResult = await this.storageService.uploadFile(mockFile, user, {
+      type: 'image',
+      metadata: {
+        originalName: promoUploadDto.fileName,
+        pageId,
+        description: promoUploadDto.description,
+        designTemplate: promoUploadDto.designMetadata?.template,
+        colors: promoUploadDto.designMetadata?.colors,
+      },
+      isPublic: false,
+    });
+
+    // Step 5: Create PromoCard record
+    const promoCard = this.promoCardRepository.create({
+      pageId,
+      fileName,
+      fileUrl: uploadResult.key || uploadResult.path, // Store the storage key/path
+      size: imageBuffer.length,
+      mimeType,
+      metadata: {
+        width: promoUploadDto.designMetadata?.dimensions?.width,
+        height: promoUploadDto.designMetadata?.dimensions?.height,
+        format: extension,
+        originalName: promoUploadDto.fileName,
+        description: promoUploadDto.description,
+      },
+    });
+
+    const savedPromoCard = await this.promoCardRepository.save(promoCard);
+
+    // Step 6: Return response with file info
+    const responseDto: PromoCardResponseDto = {
+      id: savedPromoCard.id,
+      pageId: savedPromoCard.pageId,
+      fileName: savedPromoCard.fileName,
+      fileUrl: savedPromoCard.fileUrl,
+      size: savedPromoCard.size,
+      mimeType: savedPromoCard.mimeType,
+      metadata: savedPromoCard.metadata,
+      createdAt: savedPromoCard.createdAt,
+    };
+
+    return {
+      statusCode: HttpStatus.CREATED,
+      message: 'Promo card saved successfully',
+      data: responseDto,
+    };
   }
 
   /**
@@ -951,50 +864,39 @@ export class RatedFansService {
     pageId: string,
     user: User,
   ): Promise<ApiResponse<PromoCardResponseDto[]>> {
-    try {
-      this.logger.log(`Getting promo cards for page ${pageId}`);
+    this.logger.log(`Getting promo cards for page ${pageId}`);
 
-      // Step 1: Validate page exists and user owns it
-      if (!(await this.validatePageOwnership(pageId, user.id))) {
-        return {
-          statusCode: HttpStatus.FORBIDDEN,
-          message: 'You can only access promo cards for your own pages',
-        };
-      }
-
-      // Step 2: Get all promo cards for the page
-      const promoCards = await this.promoCardRepository.find({
-        where: { pageId },
-        order: { createdAt: 'DESC' }, // Newest first
-      });
-
-      // Step 3: Transform to response DTOs
-      const promoCardDtos: PromoCardResponseDto[] = promoCards.map((card) => ({
-        id: card.id,
-        pageId: card.pageId,
-        fileName: card.fileName,
-        fileUrl: card.fileUrl,
-        size: card.size,
-        mimeType: card.mimeType,
-        metadata: card.metadata,
-        createdAt: card.createdAt,
-      }));
-
-      return {
-        statusCode: HttpStatus.OK,
-        message: 'Promo cards retrieved successfully',
-        data: promoCardDtos,
-      };
-    } catch (error) {
-      this.logger.error(
-        `Failed to get promo cards for page ${pageId}: ${error.message}`,
-        error.stack,
+    // Step 1: Validate page exists and user owns it
+    if (!(await this.validatePageOwnership(pageId, user.id))) {
+      throw new HttpException(
+        'You can only access promo cards for your own pages',
+        HttpStatus.FORBIDDEN,
       );
-      return {
-        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-        message: 'An error occurred while retrieving promo cards',
-      };
     }
+
+    // Step 2: Get all promo cards for the page
+    const promoCards = await this.promoCardRepository.find({
+      where: { pageId },
+      order: { createdAt: 'DESC' }, // Newest first
+    });
+
+    // Step 3: Transform to response DTOs
+    const promoCardDtos: PromoCardResponseDto[] = promoCards.map((card) => ({
+      id: card.id,
+      pageId: card.pageId,
+      fileName: card.fileName,
+      fileUrl: card.fileUrl,
+      size: card.size,
+      mimeType: card.mimeType,
+      metadata: card.metadata,
+      createdAt: card.createdAt,
+    }));
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Promo cards retrieved successfully',
+      data: promoCardDtos,
+    };
   }
 
   // =============================================================================
@@ -1012,21 +914,6 @@ export class RatedFansService {
       .replace(/\s+/g, '-') // Replace spaces with hyphens
       .replace(/-+/g, '-') // Replace multiple hyphens with single
       .trim();
-  }
-
-  /**
-   * Ensures slug uniqueness by appending numbers if needed
-   */
-  private async ensureUniqueSlug(baseSlug: string): Promise<string> {
-    let slug = baseSlug;
-    let counter = 1;
-
-    while (await this.pageRepository.findOne({ where: { slug } })) {
-      slug = `${baseSlug}-${counter}`;
-      counter++;
-    }
-
-    return slug;
   }
 
   /**

@@ -77,18 +77,7 @@ export class AuthController {
     description: 'Invalid credentials',
   })
   async login(@Body() loginUserDto: LoginUserDto) {
-    // 2024-12-28: Fixed status code issue by properly handling HTTP exceptions
-    const result = await this.authService.login(loginUserDto);
-
-    if (result.statusCode === HttpStatus.UNAUTHORIZED) {
-      throw new HttpException(result.message, HttpStatus.UNAUTHORIZED);
-    }
-
-    if (result.statusCode === HttpStatus.FORBIDDEN) {
-      throw new HttpException(result.message, HttpStatus.FORBIDDEN);
-    }
-
-    return result;
+    return await this.authService.login(loginUserDto);
   }
 
   @Post('verify-otp')
@@ -178,15 +167,7 @@ export class AuthController {
       );
     }
 
-    try {
-      return await this.authService.verifyEmail(token);
-    } catch (error) {
-      this.logger.error('Email verification failed', error);
-      throw new HttpException(
-        'Email verification failed',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
+    return await this.authService.verifyEmail(token);
   }
 
   @Post('change-password')

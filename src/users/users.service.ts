@@ -3,6 +3,7 @@ import {
   UnauthorizedException,
   Logger,
   HttpStatus,
+  HttpException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -67,50 +68,34 @@ export class UsersService {
     userId: string,
     updateNameDto: UpdateNameDto,
   ): Promise<UpdateResponse<User>> {
-    try {
-      const user = await this.UserRepository.findOne({ where: { id: userId } });
-      if (!user) {
-        return {
-          statusCode: HttpStatus.NOT_FOUND,
-          message: 'User not found',
-        };
-      }
-
-      user.name = updateNameDto.name;
-      const updatedUser = await this.UserRepository.save(user);
-
-      return {
-        statusCode: HttpStatus.OK,
-        message: 'Name updated successfully',
-        data: updatedUser,
-      };
-    } catch (error) {
-      this.logger.error(`Failed to update name: ${error.message}`);
-      throw error;
+    const user = await this.UserRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
+
+    user.name = updateNameDto.name;
+    const updatedUser = await this.UserRepository.save(user);
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Name updated successfully',
+      data: updatedUser,
+    };
   }
 
   // Email update service - Requires OTP
   async initiateEmailUpdate(userId: string): Promise<UpdateResponse> {
-    try {
-      const user = await this.UserRepository.findOne({ where: { id: userId } });
-      if (!user) {
-        return {
-          statusCode: HttpStatus.NOT_FOUND,
-          message: 'User not found',
-        };
-      }
-
-      await this.sendUpdateOTP(user, 'Email');
-
-      return {
-        statusCode: HttpStatus.OK,
-        message: 'OTP sent for email update verification',
-      };
-    } catch (error) {
-      this.logger.error(`Failed to initiate email update: ${error.message}`);
-      throw error;
+    const user = await this.UserRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
+
+    await this.sendUpdateOTP(user, 'Email');
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'OTP sent for email update verification',
+    };
   }
 
   async updateEmail(
@@ -118,51 +103,40 @@ export class UsersService {
     updateEmailDto: UpdateEmailDto,
     otp: string,
   ): Promise<UpdateResponse<User>> {
-    try {
-      const user = await this.UserRepository.findOne({ where: { id: userId } });
-      if (!user) {
-        return {
-          statusCode: HttpStatus.NOT_FOUND,
-          message: 'User not found',
-        };
-      }
-
-      // Check if email is already taken
-      const existingUser = await this.UserRepository.findOne({
-        where: { email: updateEmailDto.email },
-      });
-      if (existingUser && existingUser.id !== userId) {
-        return {
-          statusCode: HttpStatus.CONFLICT,
-          message: 'Email already in use',
-        };
-      }
-
-      await this.verifyOTP(user, otp);
-
-      user.email = updateEmailDto.email;
-      user.isEmailVerified = false; // Require verification of new email
-      const updatedUser = await this.UserRepository.save(user);
-
-      // Send verification email to new address
-      const verificationToken =
-        await this.tokenService.generateEmailVerificationToken(user);
-      await this.emailService.sendEmailVerification(
-        updateEmailDto.email,
-        verificationToken,
-        user.name,
-      );
-
-      return {
-        statusCode: HttpStatus.OK,
-        message:
-          'Email updated successfully. Please verify your new email address.',
-        data: updatedUser,
-      };
-    } catch (error) {
-      this.logger.error(`Failed to update email: ${error.message}`);
-      throw error;
+    const user = await this.UserRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
+
+    // Check if email is already taken
+    const existingUser = await this.UserRepository.findOne({
+      where: { email: updateEmailDto.email },
+    });
+    if (existingUser && existingUser.id !== userId) {
+      throw new HttpException('Email already in use', HttpStatus.CONFLICT);
+    }
+
+    await this.verifyOTP(user, otp);
+
+    user.email = updateEmailDto.email;
+    user.isEmailVerified = false; // Require verification of new email
+    const updatedUser = await this.UserRepository.save(user);
+
+    // Send verification email to new address
+    const verificationToken =
+      await this.tokenService.generateEmailVerificationToken(user);
+    await this.emailService.sendEmailVerification(
+      updateEmailDto.email,
+      verificationToken,
+      user.name,
+    );
+
+    return {
+      statusCode: HttpStatus.OK,
+      message:
+        'Email updated successfully. Please verify your new email address.',
+      data: updatedUser,
+    };
   }
 
   // Phone number update
@@ -170,27 +144,19 @@ export class UsersService {
     userId: string,
     updatePhoneDto: UpdatePhoneDto,
   ): Promise<UpdateResponse<User>> {
-    try {
-      const user = await this.UserRepository.findOne({ where: { id: userId } });
-      if (!user) {
-        return {
-          statusCode: HttpStatus.NOT_FOUND,
-          message: 'User not found',
-        };
-      }
-
-      user.phoneNumber = updatePhoneDto.phoneNumber;
-      const updatedUser = await this.UserRepository.save(user);
-
-      return {
-        statusCode: HttpStatus.OK,
-        message: 'Phone number updated successfully',
-        data: updatedUser,
-      };
-    } catch (error) {
-      this.logger.error(`Failed to update phone number: ${error.message}`);
-      throw error;
+    const user = await this.UserRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
+
+    user.phoneNumber = updatePhoneDto.phoneNumber;
+    const updatedUser = await this.UserRepository.save(user);
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Phone number updated successfully',
+      data: updatedUser,
+    };
   }
 
   // Profile Image Update
@@ -198,27 +164,19 @@ export class UsersService {
     userId: string,
     updateProfileImageDto: UpdateProfileImageDto,
   ): Promise<UpdateResponse<User>> {
-    try {
-      const user = await this.UserRepository.findOne({ where: { id: userId } });
-      if (!user) {
-        return {
-          statusCode: HttpStatus.NOT_FOUND,
-          message: 'User not found',
-        };
-      }
-
-      user.profileImage = updateProfileImageDto.profileImage;
-      const updatedUser = await this.UserRepository.save(user);
-
-      return {
-        statusCode: HttpStatus.OK,
-        message: 'Profile image updated successfully',
-        data: updatedUser,
-      };
-    } catch (error) {
-      this.logger.error(`Failed to update profile image: ${error.message}`);
-      throw error;
+    const user = await this.UserRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
+
+    user.profileImage = updateProfileImageDto.profileImage;
+    const updatedUser = await this.UserRepository.save(user);
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Profile image updated successfully',
+      data: updatedUser,
+    };
   }
 
   // Country Update
@@ -226,27 +184,19 @@ export class UsersService {
     userId: string,
     updateCountryDto: UpdateCountryDto,
   ): Promise<UpdateResponse<User>> {
-    try {
-      const user = await this.UserRepository.findOne({ where: { id: userId } });
-      if (!user) {
-        return {
-          statusCode: HttpStatus.NOT_FOUND,
-          message: 'User not found',
-        };
-      }
-
-      user.country = updateCountryDto.country;
-      const updatedUser = await this.UserRepository.save(user);
-
-      return {
-        statusCode: HttpStatus.OK,
-        message: 'Country updated successfully',
-        data: updatedUser,
-      };
-    } catch (error) {
-      this.logger.error(`Failed to update country: ${error.message}`);
-      throw error;
+    const user = await this.UserRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
+
+    user.country = updateCountryDto.country;
+    const updatedUser = await this.UserRepository.save(user);
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Country updated successfully',
+      data: updatedUser,
+    };
   }
   // END OFTHE REXT
 

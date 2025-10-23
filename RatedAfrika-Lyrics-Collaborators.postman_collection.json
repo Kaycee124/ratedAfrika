@@ -1,0 +1,457 @@
+{
+  "info": {
+    "name": "Rated Afrika - Lyrics & Collaborators Tests",
+    "description": "Testing suite for lyrics partial data and song collaborators features",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "BASE_URL",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "ACCESS_TOKEN",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "SONG_ID",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "ARTIST_ID",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "COLLABORATOR_ID",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "LYRICS_ID",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Authentication",
+      "item": [
+        {
+          "name": "Login User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const response = pm.response.json();",
+                  "pm.environment.set(\"ACCESS_TOKEN\", response.data.accessToken);",
+                  "pm.environment.set(\"USER_ID\", response.data.user.id);",
+                  "",
+                  "pm.test(\"Access token is present\", function () {",
+                  "    pm.expect(response.data.accessToken).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"Password123\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/auth/login",
+              "host": ["{{BASE_URL}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Lyrics Tests",
+      "item": [
+        {
+          "name": "Get Lyrics - No Lyrics (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 404\", function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test(\"Error message is 'No lyrics found'\", function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.message).to.equal(\"No lyrics found\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ACCESS_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/lyrics/song/{{SONG_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["lyrics", "song", "{{SONG_ID}}"]
+            }
+          }
+        },
+        {
+          "name": "Create Lyrics - Basic Only",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "const response = pm.response.json();",
+                  "pm.environment.set(\"LYRICS_ID\", response.data.id);",
+                  "",
+                  "pm.test(\"Lyrics created successfully\", function () {",
+                  "    pm.expect(response.message).to.include(\"created successfully\");",
+                  "    pm.expect(response.data.basicLyrics).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ACCESS_TOKEN}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"songId\": \"{{SONG_ID}}\",\n  \"basicLyrics\": \"Verse 1:\\nThis is my song\\nWith beautiful lyrics\\n\\nChorus:\\nSinging all day long\",\n  \"synchronizedLyrics\": []\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/lyrics",
+              "host": ["{{BASE_URL}}"],
+              "path": ["lyrics"]
+            }
+          }
+        },
+        {
+          "name": "Get Lyrics - Missing Synced Returns Empty Array",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const response = pm.response.json();",
+                  "",
+                  "pm.test(\"Basic lyrics exists\", function () {",
+                  "    pm.expect(response.data.basicLyrics).to.be.a('string');",
+                  "    pm.expect(response.data.basicLyrics.length).to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test(\"Synchronized lyrics is empty array\", function () {",
+                  "    pm.expect(response.data.synchronizedLyrics).to.be.an('array');",
+                  "    pm.expect(response.data.synchronizedLyrics).to.have.lengthOf(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ACCESS_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/lyrics/song/{{SONG_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["lyrics", "song", "{{SONG_ID}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Songs with Collaborators",
+      "item": [
+        {
+          "name": "Prerequisites",
+          "item": [
+            {
+              "name": "Create Collaborator",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status code is 201\", function () {",
+                      "    pm.response.to.have.status(201);",
+                      "});",
+                      "",
+                      "const response = pm.response.json();",
+                      "pm.environment.set(\"COLLABORATOR_ID\", response.data.id);",
+                      "",
+                      "pm.test(\"Collaborator created\", function () {",
+                      "    pm.expect(response.data.name).to.equal(\"John Producer\");",
+                      "    pm.expect(response.data.role).to.equal(\"producer\");",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{ACCESS_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"John Producer\",\n  \"email\": \"producer@example.com\",\n  \"role\": \"producer\",\n  \"spotifyUrl\": \"https://open.spotify.com/artist/123\",\n  \"appleUrl\": \"https://music.apple.com/artist/123\"\n}"
+                },
+                "url": {
+                  "raw": "{{BASE_URL}}/collaborators",
+                  "host": ["{{BASE_URL}}"],
+                  "path": ["collaborators"]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Song Details (with Collaborators)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const response = pm.response.json();",
+                  "",
+                  "pm.test(\"Song has collaborators array\", function () {",
+                  "    pm.expect(response.data.collaborators).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test(\"Collaborators have correct structure\", function () {",
+                  "    if (response.data.collaborators.length > 0) {",
+                  "        const collab = response.data.collaborators[0];",
+                  "        pm.expect(collab).to.have.property('name');",
+                  "        pm.expect(collab).to.have.property('email');",
+                  "        pm.expect(collab).to.have.property('role');",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test(\"Song has currentSplitSheet\", function () {",
+                  "    pm.expect(response.data).to.have.property('currentSplitSheet');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ACCESS_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/songs/{{SONG_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["songs", "{{SONG_ID}}"]
+            }
+          }
+        },
+        {
+          "name": "Query Songs (List with Collaborators)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const response = pm.response.json();",
+                  "",
+                  "pm.test(\"Response has songs array\", function () {",
+                  "    pm.expect(response.data.songs).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test(\"Each song has collaborators array\", function () {",
+                  "    response.data.songs.forEach(song => {",
+                  "        pm.expect(song.collaborators).to.be.an('array');",
+                  "    });",
+                  "});",
+                  "",
+                  "pm.test(\"Pagination data exists\", function () {",
+                  "    pm.expect(response.data).to.have.property('total');",
+                  "    pm.expect(response.data).to.have.property('page');",
+                  "    pm.expect(response.data).to.have.property('limit');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ACCESS_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/songs?page=1&limit=10",
+              "host": ["{{BASE_URL}}"],
+              "path": ["songs"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get User Songs (with Collaborators)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const response = pm.response.json();",
+                  "",
+                  "pm.test(\"Response is array of songs\", function () {",
+                  "    pm.expect(response.data).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test(\"Each song has collaborators\", function () {",
+                  "    response.data.forEach(song => {",
+                  "        pm.expect(song).to.have.property('collaborators');",
+                  "        pm.expect(song.collaborators).to.be.an('array');",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ACCESS_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/songs/userObject",
+              "host": ["{{BASE_URL}}"],
+              "path": ["songs", "userObject"]
+            }
+          }
+        },
+        {
+          "name": "Get Artist Songs (with Collaborators)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const response = pm.response.json();",
+                  "",
+                  "pm.test(\"Response is array of songs\", function () {",
+                  "    pm.expect(response.data).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test(\"Each song has collaborators and split sheet\", function () {",
+                  "    response.data.forEach(song => {",
+                  "        pm.expect(song).to.have.property('collaborators');",
+                  "        pm.expect(song).to.have.property('currentSplitSheet');",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ACCESS_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/songs/artist/{{ARTIST_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["songs", "artist", "{{ARTIST_ID}}"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
+

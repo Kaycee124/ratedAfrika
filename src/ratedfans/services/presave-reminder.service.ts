@@ -146,11 +146,13 @@ export class PresaveReminderService {
       });
 
       if (!page) {
-        throw new Error('Page not found');
+        this.logger.error(`Page ${pageId} not found for manual reminder`);
+        return { sent: 0, failed: 0 };
       }
 
       if (!page.isPresaveEnabled) {
-        throw new Error('Presave is not enabled for this page');
+        this.logger.warn(`Presave is not enabled for page ${pageId}`);
+        return { sent: 0, failed: 0 };
       }
 
       const presaveSignups = await this.presaveRepository.find({
@@ -183,7 +185,7 @@ export class PresaveReminderService {
       return { sent, failed };
     } catch (error) {
       this.logger.error('Error in manual reminder:', error);
-      throw error;
+      return { sent: 0, failed: 0 };
     }
   }
 }

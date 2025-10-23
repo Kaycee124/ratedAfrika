@@ -7,37 +7,57 @@ export class customLoggerClass implements LoggerService {
 
   constructor() {
     this.logger = winston.createLogger({
-      level: 'error', // Log only error-level messages
+      level: 'info', // Log info, warn, and error messages
       format: winston.format.combine(
-        winston.format.timestamp(),
-        winston.format.printf(({ timestamp, level, message, stack }) => {
-          return `${timestamp} ${level}: ${message} - ${stack || ''}`;
-        }),
+        winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+        winston.format.errors({ stack: true }), // Include stack traces
+        winston.format.json(), // JSON format for easier parsing
       ),
       transports: [
-        new winston.transports.Console(),
-        new winston.transports.File({ filename: 'logs/error.log' }), // Log errors to file
+        // Console output (colored for readability)
+        new winston.transports.Console({
+          format: winston.format.combine(
+            winston.format.colorize(),
+            winston.format.printf(({ timestamp, level, message, context, stack }) => {
+              const contextStr = context ? `[${context}]` : '';
+              return `${timestamp} ${level} ${contextStr} ${message}${stack ? '\n' + stack : ''}`;
+            }),
+          ),
+        }),
+        
+        // ERROR logs only
+        new winston.transports.File({ 
+          filename: 'logs/error.log',
+          level: 'error',
+          format: winston.format.json(),
+        }),
+        
+        // ALL logs (info, warn, error)
+        new winston.transports.File({ 
+          filename: 'logs/combined.log',
+          format: winston.format.json(),
+        }),
       ],
     });
   }
 
-  log(message: string) {
-    this.logger.info(message);
+  log(message: string, context?: string) {
+    this.logger.info(message, { context });
   }
 
-  error(message: string, trace: string) {
-    this.logger.error(message, { stack: trace });
+  error(message: string, trace?: string, context?: string) {
+    this.logger.error(message, { trace, context });
   }
 
-  warn(message: string) {
-    this.logger.warn(message);
+  warn(message: string, context?: string) {
+    this.logger.warn(message, { context });
   }
 
-  debug(message: string) {
-    this.logger.debug(message);
+  debug(message: string, context?: string) {
+    this.logger.debug(message, { context });
   }
 
-  verbose(message: string) {
-    this.logger.verbose(message);
+  verbose(message: string, context?: string) {
+    this.logger.verbose(message, { context });
   }
 }

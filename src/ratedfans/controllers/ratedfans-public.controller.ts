@@ -32,13 +32,13 @@ export class RatedFansPublicController {
   @Get(':slug')
   @ApiOperation({ summary: 'Get page details by slug' })
   async getPageBySlug(@Param('slug') slug: string): Promise<ApiResponse> {
-    return this.ratedFansService.findPageBySlug(slug);
+    return await this.ratedFansService.findPageBySlug(slug);
   }
 
   @Get(':slug/links')
   @ApiOperation({ summary: 'Get active streaming platform links' })
   async getPageLinks(@Param('slug') slug: string): Promise<ApiResponse> {
-    return this.ratedFansService.getPageLinks(slug);
+    return await this.ratedFansService.getPageLinks(slug);
   }
 
   @Get(':slug/redirect')
@@ -59,6 +59,6 @@ export class RatedFansPublicController {
     @Param('slug') slug: string,
     @Body() presaveDto: PresaveSignupDto,
   ): Promise<ApiResponse> {
-    return this.presaveService.signupForPresaveBySlug(slug, presaveDto);
+    return await this.presaveService.signupForPresaveBySlug(slug, presaveDto);
   }
 }

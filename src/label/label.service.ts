@@ -4,6 +4,7 @@ import {
   Logger,
   HttpStatus,
   BadRequestException,
+  HttpException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -37,42 +38,31 @@ export class LabelsService {
     createLabelDto: CreateLabelDto,
     user: User,
   ): Promise<ApiResponse<Label>> {
-    try {
-      // Check if label with same name exists
-      const existingLabel = await this.labelRepository.findOne({
-        where: { labelName: createLabelDto.labelName },
-      });
+    // Check if label with same name exists
+    const existingLabel = await this.labelRepository.findOne({
+      where: { labelName: createLabelDto.labelName },
+    });
 
-      if (existingLabel) {
-        return {
-          statusCode: HttpStatus.CONFLICT,
-          message: 'Label name is already taken',
-        };
-      }
-
-      // Create new label
-      const label = this.labelRepository.create({
-        ...createLabelDto,
-        user,
-      });
-
-      const savedLabel = await this.labelRepository.save(label);
-
-      return {
-        statusCode: HttpStatus.CREATED,
-        message: 'Label created successfully',
-        data: savedLabel,
-      };
-    } catch (error) {
-      this.logger.error(
-        `Failed to create label: ${error.message}`,
-        error.stack,
+    if (existingLabel) {
+      throw new HttpException(
+        'Label name is already taken',
+        HttpStatus.CONFLICT,
       );
-      return {
-        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-        message: 'An error occurred while creating the label',
-      };
     }
+
+    // Create new label
+    const label = this.labelRepository.create({
+      ...createLabelDto,
+      user,
+    });
+
+    const savedLabel = await this.labelRepository.save(label);
+
+    return {
+      statusCode: HttpStatus.CREATED,
+      message: 'Label created successfully',
+      data: savedLabel,
+    };
   }
 
   async findAll(queryDto: QueryLabelDto): Promise<
@@ -153,31 +143,23 @@ export class LabelsService {
   // src/labels/labels.service.ts (continued)
 
   async findOne(id: string): Promise<ApiResponse<Label>> {
-    try {
-      const label = await this.labelRepository.findOne({
-        where: { id },
-        relations: ['user', 'artistRoster'],
-      });
+    const label = await this.labelRepository.findOne({
+      where: { id },
+      relations: ['user', 'artistRoster'],
+    });
 
-      if (!label) {
-        return {
-          statusCode: HttpStatus.NOT_FOUND,
-          message: `Label with ID ${id} not found`,
-        };
-      }
-
-      return {
-        statusCode: HttpStatus.OK,
-        message: 'Label retrieved successfully',
-        data: label,
-      };
-    } catch (error) {
-      this.logger.error(`Failed to fetch label: ${error.message}`, error.stack);
-      return {
-        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-        message: 'An error occurred while fetching the label',
-      };
+    if (!label) {
+      throw new HttpException(
+        `Label with ID ${id} not found`,
+        HttpStatus.NOT_FOUND,
+      );
     }
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Label retrieved successfully',
+      data: label,
+    };
   }
 
   async update(
@@ -185,138 +167,102 @@ export class LabelsService {
     updateLabelDto: UpdateLabelDto,
     user: User,
   ): Promise<ApiResponse<Label>> {
-    try {
-      const label = await this.labelRepository.findOne({
-        where: { id },
-        relations: ['user'],
+    const label = await this.labelRepository.findOne({
+      where: { id },
+      relations: ['user'],
+    });
+
+    if (!label) {
+      throw new HttpException(
+        `Label with ID ${id} not found`,
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    // Verify ownership
+    if (label.user.id !== user.id) {
+      throw new HttpException(
+        'You do not have permission to update this label',
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    // Check label name uniqueness if it's being updated
+    if (
+      updateLabelDto.labelName &&
+      updateLabelDto.labelName !== label.labelName
+    ) {
+      const existingLabel = await this.labelRepository.findOne({
+        where: { labelName: updateLabelDto.labelName },
       });
 
-      if (!label) {
-        return {
-          statusCode: HttpStatus.NOT_FOUND,
-          message: `Label with ID ${id} not found`,
-        };
+      if (existingLabel) {
+        throw new HttpException(
+          'Label name is already taken',
+          HttpStatus.CONFLICT,
+        );
       }
-
-      // Verify ownership
-      if (label.user.id !== user.id) {
-        return {
-          statusCode: HttpStatus.FORBIDDEN,
-          message: 'You do not have permission to update this label',
-        };
-      }
-
-      // Check label name uniqueness if it's being updated
-      if (
-        updateLabelDto.labelName &&
-        updateLabelDto.labelName !== label.labelName
-      ) {
-        const existingLabel = await this.labelRepository.findOne({
-          where: { labelName: updateLabelDto.labelName },
-        });
-
-        if (existingLabel) {
-          return {
-            statusCode: HttpStatus.CONFLICT,
-            message: 'Label name is already taken',
-          };
-        }
-      }
-
-      // Update label
-      Object.assign(label, updateLabelDto);
-      const updatedLabel = await this.labelRepository.save(label);
-
-      return {
-        statusCode: HttpStatus.OK,
-        message: 'Label updated successfully',
-        data: updatedLabel,
-      };
-    } catch (error) {
-      this.logger.error(
-        `Failed to update label: ${error.message}`,
-        error.stack,
-      );
-      return {
-        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-        message: 'An error occurred while updating the label',
-      };
     }
+
+    // Update label
+    Object.assign(label, updateLabelDto);
+    const updatedLabel = await this.labelRepository.save(label);
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Label updated successfully',
+      data: updatedLabel,
+    };
   }
 
   async remove(id: string, user: User): Promise<ApiResponse> {
-    try {
-      const label = await this.labelRepository.findOne({
-        where: { id },
-        relations: ['user', 'artistRoster'],
-      });
+    const label = await this.labelRepository.findOne({
+      where: { id },
+      relations: ['user', 'artistRoster'],
+    });
 
-      if (!label) {
-        return {
-          statusCode: HttpStatus.NOT_FOUND,
-          message: `Label with ID ${id} not found`,
-        };
-      }
-
-      // Verify ownership
-      if (label.user.id !== user.id) {
-        return {
-          statusCode: HttpStatus.FORBIDDEN,
-          message: 'You do not have permission to delete this label',
-        };
-      }
-
-      // Check if label has artists in roster
-      if (label.artistRoster && label.artistRoster.length > 0) {
-        return {
-          statusCode: HttpStatus.CONFLICT,
-          message: 'Cannot delete label with active artists in roster',
-          data: {
-            artistCount: label.artistRoster.length,
-          },
-        };
-      }
-
-      await this.labelRepository.softDelete(id);
-
-      return {
-        statusCode: HttpStatus.OK,
-        message: 'Label deleted successfully',
-      };
-    } catch (error) {
-      this.logger.error(
-        `Failed to delete label: ${error.message}`,
-        error.stack,
+    if (!label) {
+      throw new HttpException(
+        `Label with ID ${id} not found`,
+        HttpStatus.NOT_FOUND,
       );
-      return {
-        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-        message: 'An error occurred while deleting the label',
-      };
     }
+
+    // Verify ownership
+    if (label.user.id !== user.id) {
+      throw new HttpException(
+        'You do not have permission to delete this label',
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    // Check if label has artists in roster
+    if (label.artistRoster && label.artistRoster.length > 0) {
+      throw new HttpException(
+        'Cannot delete label with active artists in roster',
+        HttpStatus.CONFLICT,
+      );
+    }
+
+    await this.labelRepository.softDelete(id);
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Label deleted successfully',
+    };
   }
 
   async findByUser(userId: string): Promise<ApiResponse<Label[]>> {
-    try {
-      const labels = await this.labelRepository.find({
-        where: { user: { id: userId } },
-        relations: ['artistRoster'],
-      });
+    const labels = await this.labelRepository.find({
+      where: { user: { id: userId } },
+      relations: ['artistRoster'],
+    });
 
-      return {
-        statusCode: HttpStatus.OK,
-        message: 'User labels retrieved successfully',
-        data: labels,
-      };
-    } catch (error) {
-      this.logger.error(
-        `Failed to fetch user's labels: ${error.message}`,
-        error.stack,
-      );
-      return {
-        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-        message: 'An error occurred while fetching user labels',
-      };
-    }
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'User labels retrieved successfully',
+      data: labels,
+    };
   }
 
   async addArtistToRoster(
@@ -324,99 +270,76 @@ export class LabelsService {
     artistId: string,
     user: User,
   ): Promise<ApiResponse> {
-    try {
-      // Get label with its current roster
-      const label = await this.labelRepository.findOne({
-        where: { id: labelId },
-        relations: ['user', 'artistRoster'],
-      });
+    // Get label with its current roster
+    const label = await this.labelRepository.findOne({
+      where: { id: labelId },
+      relations: ['user', 'artistRoster'],
+    });
 
-      if (!label) {
-        return {
-          statusCode: HttpStatus.NOT_FOUND,
-          message: 'Label not found',
-        };
-      }
-
-      // Verify ownership
-      if (label.user.id !== user.id) {
-        return {
-          statusCode: HttpStatus.FORBIDDEN,
-          message: "You do not have permission to manage this label's roster",
-        };
-      }
-
-      // Find the artist
-      const artist = await this.artistRepository.findOne({
-        where: { id: artistId },
-        relations: ['label'], // Include label relation to check current label
-      });
-
-      if (!artist) {
-        return {
-          statusCode: HttpStatus.NOT_FOUND,
-          message: 'Artist not found',
-        };
-      }
-
-      // Check if artist already has a label
-      if (artist.label) {
-        return {
-          statusCode: HttpStatus.CONFLICT,
-          message: 'Artist is already signed to a different label',
-          data: {
-            currentLabel: {
-              id: artist.label.id,
-              name: artist.label.labelName,
-            },
-          },
-        };
-      }
-
-      // Check if artist already in this label's roster
-      const isArtistInRoster = label.artistRoster.some(
-        (rosterArtist) => rosterArtist.id === artistId,
-      );
-
-      if (isArtistInRoster) {
-        return {
-          statusCode: HttpStatus.CONFLICT,
-          message: "Artist is already in this label's roster",
-        };
-      }
-
-      // Update the artist's label reference
-      artist.label = label;
-      await this.artistRepository.save(artist);
-
-      // Update label's roster (Optional: TypeORM will handle this automatically through cascade)
-      label.artistRoster.push(artist);
-      await this.labelRepository.save(label);
-
-      return {
-        statusCode: HttpStatus.OK,
-        message: 'Artist added to roster successfully',
-        data: {
-          label: {
-            id: label.id,
-            labelName: label.labelName,
-          },
-          artist: {
-            id: artist.id,
-            stageName: artist.name,
-          },
-        },
-      };
-    } catch (error) {
-      this.logger.error(
-        `Failed to add artist to roster: ${error.message}`,
-        error.stack,
-      );
-      return {
-        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-        message: 'An error occurred while adding artist to roster',
-      };
+    if (!label) {
+      throw new HttpException('Label not found', HttpStatus.NOT_FOUND);
     }
+
+    // Verify ownership
+    if (label.user.id !== user.id) {
+      throw new HttpException(
+        "You do not have permission to manage this label's roster",
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    // Find the artist
+    const artist = await this.artistRepository.findOne({
+      where: { id: artistId },
+      relations: ['label'], // Include label relation to check current label
+    });
+
+    if (!artist) {
+      throw new HttpException('Artist not found', HttpStatus.NOT_FOUND);
+    }
+
+    // Check if artist already has a label
+    if (artist.label) {
+      throw new HttpException(
+        'Artist is already signed to a different label',
+        HttpStatus.CONFLICT,
+      );
+    }
+
+    // Check if artist already in this label's roster
+    const isArtistInRoster = label.artistRoster.some(
+      (rosterArtist) => rosterArtist.id === artistId,
+    );
+
+    if (isArtistInRoster) {
+      throw new HttpException(
+        "Artist is already in this label's roster",
+        HttpStatus.CONFLICT,
+      );
+    }
+
+    // Update the artist's label reference
+    artist.label = label;
+    await this.artistRepository.save(artist);
+
+    // Update label's roster (Optional: TypeORM will handle this automatically through cascade)
+    label.artistRoster.push(artist);
+    await this.labelRepository.save(label);
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Artist added to roster successfully',
+      data: {
+        label: {
+          id: label.id,
+          labelName: label.labelName,
+        },
+        artist: {
+          id: artist.id,
+          stageName: artist.name,
+        },
+      },
+    };
   }
 
   async removeArtistFromRoster(
@@ -424,81 +347,64 @@ export class LabelsService {
     artistId: string,
     user: User,
   ): Promise<ApiResponse> {
-    try {
-      const label = await this.labelRepository.findOne({
-        where: { id: labelId },
-        relations: ['user', 'artistRoster'],
-      });
+    const label = await this.labelRepository.findOne({
+      where: { id: labelId },
+      relations: ['user', 'artistRoster'],
+    });
 
-      if (!label) {
-        return {
-          statusCode: HttpStatus.NOT_FOUND,
-          message: 'Label not found',
-        };
-      }
-
-      // Verify ownership
-      if (label.user.id !== user.id) {
-        return {
-          statusCode: HttpStatus.FORBIDDEN,
-          message: "You do not have permission to manage this label's roster",
-        };
-      }
-
-      // Find the artist
-      const artist = await this.artistRepository.findOne({
-        where: { id: artistId },
-        relations: ['label'],
-      });
-
-      if (!artist) {
-        return {
-          statusCode: HttpStatus.NOT_FOUND,
-          message: 'Artist not found',
-        };
-      }
-
-      // Verify artist is actually in this label's roster
-      if (artist.label?.id !== label.id) {
-        return {
-          statusCode: HttpStatus.BAD_REQUEST,
-          message: "Artist is not in this label's roster",
-        };
-      }
-
-      // Remove label reference from artist
-      artist.label = null;
-      await this.artistRepository.save(artist);
-
-      // Update label's roster (Optional: TypeORM will handle this automatically)
-      label.artistRoster = label.artistRoster.filter(
-        (rosterArtist) => rosterArtist.id !== artistId,
-      );
-      await this.labelRepository.save(label);
-
-      return {
-        statusCode: HttpStatus.OK,
-        message: 'Artist removed from roster successfully',
-        data: {
-          label: {
-            id: label.id,
-            labelName: label.labelName,
-          },
-          artist: {
-            id: artist.id,
-            stageName: artist.name,
-          },
-        },
-      };
-    } catch (error) {
-      this.logger.error(
-        `Failed to remove artist from roster: ${error.message}`,
-        error.stack,
-      );
-      return {
-        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-        message: 'An error occurred while removing artist from roster',
-      };
+    if (!label) {
+      throw new HttpException('Label not found', HttpStatus.NOT_FOUND);
     }
+
+    // Verify ownership
+    if (label.user.id !== user.id) {
+      throw new HttpException(
+        "You do not have permission to manage this label's roster",
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    // Find the artist
+    const artist = await this.artistRepository.findOne({
+      where: { id: artistId },
+      relations: ['label'],
+    });
+
+    if (!artist) {
+      throw new HttpException('Artist not found', HttpStatus.NOT_FOUND);
+    }
+
+    // Verify artist is actually in this label's roster
+    if (artist.label?.id !== label.id) {
+      throw new HttpException(
+        "Artist is not in this label's roster",
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    // Remove label reference from artist
+    artist.label = null;
+    await this.artistRepository.save(artist);
+
+    // Update label's roster (Optional: TypeORM will handle this automatically)
+    label.artistRoster = label.artistRoster.filter(
+      (rosterArtist) => rosterArtist.id !== artistId,
+    );
+    await this.labelRepository.save(label);
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Artist removed from roster successfully',
+      data: {
+        label: {
+          id: label.id,
+          labelName: label.labelName,
+        },
+        artist: {
+          id: artist.id,
+          stageName: artist.name,
+        },
+      },
+    };
   }
 }

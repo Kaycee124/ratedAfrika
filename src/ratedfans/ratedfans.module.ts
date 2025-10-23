@@ -11,6 +11,7 @@ import { PresaveReminderService } from './services/presave-reminder.service';
 // Controllers
 import { RatedFansPublicController } from './controllers/ratedfans-public.controller';
 import { RatedFansDashboardController } from './controllers/ratedfans-dashboard.controller';
+import { RatedFansSlugController } from './controllers/ratedfans-slug.controller'; // 2025-01-22 23:48: Added direct /:slug endpoint controller
 
 // External modules
 import { DatabaseModule } from '../core/database/database.module';
@@ -27,7 +28,11 @@ import { SharedModule } from '../core/shared/shared.module'; // For EmailService
     SharedModule, // For EmailService
     ScheduleModule.forRoot(), // 2024-12-28: Added for presave reminder jobs
   ],
-  controllers: [RatedFansPublicController, RatedFansDashboardController],
+  controllers: [
+    RatedFansPublicController,
+    RatedFansDashboardController,
+    RatedFansSlugController, // 2025-01-22 23:48: Added direct /:slug endpoint controller
+  ],
   providers: [
     RatedFansService,
     LinkResolverService,

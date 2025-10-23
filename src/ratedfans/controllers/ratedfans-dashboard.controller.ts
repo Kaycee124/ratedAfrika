@@ -56,7 +56,7 @@ export class RatedFansDashboardController {
     @Body() createPageDto: CreatePageDto,
     @Request() req: any,
   ): Promise<ApiResponse> {
-    return this.ratedFansService.createPage(createPageDto, req.user);
+    return await this.ratedFansService.createPage(createPageDto, req.user);
   }
 
   @Get()
@@ -66,7 +66,7 @@ export class RatedFansDashboardController {
     @Query() query: PageListQueryDto,
     @Request() req: any,
   ): Promise<ApiResponse> {
-    return this.ratedFansService.getMyPages(req.user.id, query);
+    return await this.ratedFansService.getMyPages(req.user.id, query);
   }
 
   @Patch(':id')
@@ -78,7 +78,11 @@ export class RatedFansDashboardController {
     @Request() req: any,
   ): Promise<ApiResponse> {
     // 2024-12-28: Added update endpoint for RatedFans pages
-    return this.ratedFansService.updatePage(pageId, updatePageDto, req.user);
+    return await this.ratedFansService.updatePage(
+      pageId,
+      updatePageDto,
+      req.user,
+    );
   }
 
   @Delete(':id')
@@ -88,7 +92,7 @@ export class RatedFansDashboardController {
     @Request() req: any,
   ): Promise<ApiResponse> {
     // 2024-12-28: Added delete endpoint for RatedFans pages
-    return this.ratedFansService.deletePage(pageId, req.user);
+    return await this.ratedFansService.deletePage(pageId, req.user);
   }
 
   @Put(':id/links')
@@ -99,7 +103,7 @@ export class RatedFansDashboardController {
     @Body() updateLinksDto: BulkUpdateLinksDto,
     @Request() req: any,
   ): Promise<ApiResponse> {
-    return this.ratedFansService.updatePageLinks(
+    return await this.ratedFansService.updatePageLinks(
       pageId,
       updateLinksDto,
       req.user,
@@ -112,7 +116,7 @@ export class RatedFansDashboardController {
     @Param('id') pageId: string,
     @Request() req: any,
   ): Promise<LinkSuggestion[]> {
-    return this.linkResolverService.getLinksByPageId(pageId, req.user);
+    return await this.linkResolverService.getLinksByPageId(pageId, req.user);
   }
 
   @Post(':id/publish')
@@ -123,7 +127,7 @@ export class RatedFansDashboardController {
     @Body() publishDto: PublishPageDto,
     @Request() req: any,
   ): Promise<ApiResponse> {
-    return this.ratedFansService.togglePagePublication(
+    return await this.ratedFansService.togglePagePublication(
       pageId,
       publishDto,
       req.user,
@@ -137,7 +141,7 @@ export class RatedFansDashboardController {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     @Request() _req: any,
   ): Promise<ApiResponse> {
-    return this.presaveService.getPresaveStats(pageId);
+    return await this.presaveService.getPresaveStats(pageId);
   }
 
   @Post(':id/promos')
@@ -148,7 +152,7 @@ export class RatedFansDashboardController {
     @Body() promoUploadDto: PromoCardUploadDto,
     @Request() req: any,
   ): Promise<ApiResponse> {
-    return this.ratedFansService.savePromoCard(
+    return await this.ratedFansService.savePromoCard(
       pageId,
       promoUploadDto,
       req.user,
@@ -161,6 +165,6 @@ export class RatedFansDashboardController {
     @Param('id') pageId: string,
     @Request() req: any,
   ): Promise<ApiResponse> {
-    return this.ratedFansService.getPromoCards(pageId, req.user);
+    return await this.ratedFansService.getPromoCards(pageId, req.user);
   }
 }

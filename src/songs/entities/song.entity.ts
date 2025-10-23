@@ -21,6 +21,7 @@ import type { SplitSheet } from 'src/collaborators/entities/splitsheet.entity';
 import { ReleaseContainer } from './album.entity';
 import type { User } from 'src/users/user.entity';
 import { TempArtist } from 'src/artists/entities/temp-artist.entity';
+import { Collaborator } from '../../collaborators/entities/collaborator.entity';
 
 export enum ReleaseType {
   SINGLE = 'SINGLE',
@@ -165,6 +166,14 @@ export class Song {
     inverseJoinColumn: { name: 'temp_artist_id', referencedColumnName: 'id' },
   })
   featuredTempArtists: TempArtist[];
+
+  @ManyToMany(() => Collaborator)
+  @JoinTable({
+    name: 'song_collaborators',
+    joinColumn: { name: 'song_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'collaborator_id', referencedColumnName: 'id' },
+  })
+  collaborators: Collaborator[];
 
   //TODO: remove if ater found to be unimportanat
 
