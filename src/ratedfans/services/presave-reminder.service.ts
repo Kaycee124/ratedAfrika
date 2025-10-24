@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { Cron } from '@nestjs/schedule';
 import { MailerService } from '@nestjs-modules/mailer';
+import { ConfigService } from '@nestjs/config';
 import { RatedFansPage } from '../entities/ratedfans-page.entity';
 import {
   PresaveSignup,
@@ -20,6 +21,7 @@ export class PresaveReminderService {
     @InjectRepository(PresaveSignup)
     private readonly presaveRepository: Repository<PresaveSignup>,
     private readonly mailerService: MailerService,
+    private readonly configService: ConfigService,
   ) {}
 
   /**
@@ -43,7 +45,7 @@ export class PresaveReminderService {
           isPresaveEnabled: true,
           releaseDate: Between(today, tomorrow),
         },
-        relations: ['artist', 'presaveSignups'],
+        relations: ['artist', 'presaveSignups', 'links'],
       });
 
       this.logger.log(
@@ -77,8 +79,26 @@ export class PresaveReminderService {
         `Sending ${presaveSignups.length} reminder emails for "${page.releaseTitle}"`,
       );
 
+      // Get fallback URL
+      const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+      const fallbackUrl = `${frontendUrl}/r/${page.slug}`;
+
       for (const signup of presaveSignups) {
-        await this.sendReminderEmail(page, signup);
+        // Find the platform-specific link for this signup
+        const platformLink = page.links?.find(
+          link => link.platform === signup.platform && link.isActive
+        );
+
+        if (!platformLink) {
+          this.logger.warn(
+            `No active link found for platform ${signup.platform} on page ${page.id}, using fallback URL`
+          );
+        }
+
+        // Use platform-specific URL or fallback
+        const platformUrl = platformLink ? platformLink.url : fallbackUrl;
+
+        await this.sendReminderEmail(page, signup, platformUrl);
       }
     } catch (error) {
       this.logger.error(`Error sending reminders for page ${page.id}:`, error);
@@ -91,41 +111,27 @@ export class PresaveReminderService {
   private async sendReminderEmail(
     page: RatedFansPage,
     signup: PresaveSignup,
+    platformUrl: string,
   ): Promise<void> {
     try {
       const subject = `🎵 "${page.releaseTitle}" by ${page.artistName} is out now!`;
 
-      const html = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #333;">Your pre-saved song is now available! 🎉</h2>
-          
-          <p>Hi there!</p>
-          
-          <p>Great news! The song you pre-saved is now live on ${signup.platform}:</p>
-          
-          <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <h3 style="margin: 0; color: #555;">"${page.releaseTitle}"</h3>
-            <p style="margin: 5px 0; color: #777;">by ${page.artistName}</p>
-          </div>
-          
-          <p>🎵 <strong>Listen now on ${signup.platform}!</strong></p>
-          
-          <p style="margin-top: 30px; color: #666; font-size: 14px;">
-            Thank you for supporting independent music!<br>
-            - The RatedAfrika Team
-          </p>
-        </div>
-      `;
-
-      // Send email using MailerService directly for custom subject and content
+      // Send email using template with platform-specific URL
       await this.mailerService.sendMail({
         to: signup.email,
         subject,
-        html,
+        template: 'presave-release-reminder',
+        context: {
+          name: 'Music Fan',
+          songTitle: page.releaseTitle,
+          artistName: page.artistName || page.artist?.name || 'RatedFans Artist',
+          platform: signup.platform,
+          platformUrl,
+        },
       });
 
       this.logger.log(
-        `Reminder sent to ${signup.email} for "${page.releaseTitle}"`,
+        `Reminder sent to ${signup.email} for "${page.releaseTitle}" on ${signup.platform}`,
       );
     } catch (error) {
       this.logger.error(`Failed to send reminder to ${signup.email}:`, error);
@@ -142,7 +148,7 @@ export class PresaveReminderService {
     try {
       const page = await this.pageRepository.findOne({
         where: { id: pageId },
-        relations: ['artist'],
+        relations: ['artist', 'links'],
       });
 
       if (!page) {
@@ -165,9 +171,27 @@ export class PresaveReminderService {
       let sent = 0;
       let failed = 0;
 
+      // Get fallback URL
+      const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+      const fallbackUrl = `${frontendUrl}/r/${page.slug}`;
+
       for (const signup of presaveSignups) {
         try {
-          await this.sendReminderEmail(page, signup);
+          // Find the platform-specific link for this signup
+          const platformLink = page.links?.find(
+            link => link.platform === signup.platform && link.isActive
+          );
+
+          if (!platformLink) {
+            this.logger.warn(
+              `No active link found for platform ${signup.platform} on page ${page.id}, using fallback URL`
+            );
+          }
+
+          // Use platform-specific URL or fallback
+          const platformUrl = platformLink ? platformLink.url : fallbackUrl;
+
+          await this.sendReminderEmail(page, signup, platformUrl);
           sent++;
         } catch (error) {
           failed++;

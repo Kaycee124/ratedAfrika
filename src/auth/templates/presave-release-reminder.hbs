@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Your Pre-saved Song is Out Now!</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .email-container {
+            background: #ffffff;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .header .emoji {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .greeting {
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+        .announcement {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 30px;
+            border-radius: 10px;
+            margin: 30px 0;
+            text-align: center;
+        }
+        .song-info {
+            margin: 20px 0;
+        }
+        .song-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+            margin: 10px 0;
+        }
+        .artist-name {
+            font-size: 18px;
+            color: #666;
+            margin: 5px 0;
+        }
+        .platform-badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .button-container {
+            text-align: center;
+            margin: 40px 0;
+        }
+        .listen-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 18px 50px;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: bold;
+            font-size: 18px;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            transition: transform 0.2s;
+        }
+        .listen-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+        .message {
+            font-size: 16px;
+            color: #555;
+            margin: 20px 0;
+            line-height: 1.8;
+        }
+        .highlight {
+            background: #fff3cd;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        .footer {
+            background: #f9f9f9;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e0e0e0;
+        }
+        .footer-text {
+            font-size: 14px;
+            color: #666;
+            margin: 10px 0;
+        }
+        .footer-brand {
+            font-weight: bold;
+            color: #667eea;
+            margin-top: 15px;
+        }
+        .social-icons {
+            margin-top: 20px;
+        }
+        .divider {
+            height: 1px;
+            background: linear-gradient(to right, transparent, #ddd, transparent);
+            margin: 30px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <div class="emoji">🎉</div>
+            <h1>It's Out Now!</h1>
+        </div>
+        
+        <div class="content">
+            <p class="greeting">Hello {{name}},</p>
+            
+            <p class="message">
+                The moment you've been waiting for is here! The song you pre-saved is now <span class="highlight">live and ready to stream</span>.
+            </p>
+            
+            <div class="announcement">
+                <div class="song-info">
+                    <p class="song-title">"{{songTitle}}"</p>
+                    <p class="artist-name">by {{artistName}}</p>
+                    <div class="platform-badge">{{platform}}</div>
+                </div>
+            </div>
+            
+            <p class="message">
+                Click the button below to start listening right now on <strong>{{platform}}</strong>!
+            </p>
+            
+            <div class="button-container">
+                <a href="{{platformUrl}}" class="listen-button">🎵 Listen Now on {{platform}}</a>
+            </div>
+            
+            <div class="divider"></div>
+            
+            <p class="message" style="font-size: 14px; color: #888;">
+                Thank you for pre-saving and supporting this release. Your early support helps artists reach more fans and grow their music careers!
+            </p>
+        </div>
+        
+        <div class="footer">
+            <p class="footer-text">
+                Thank you for supporting independent music!
+            </p>
+            <p class="footer-brand">
+                🎵 The RatedaFRiKa Team
+            </p>
+            <p class="footer-text" style="font-size: 12px; color: #999; margin-top: 20px;">
+                You received this email because you signed up for a presave on RatedaFRiKa.<br>
+                We hope you enjoy the music!
+            </p>
+        </div>
+    </div>
+</body>
+</html>
+

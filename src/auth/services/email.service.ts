@@ -231,4 +231,39 @@ export class EmailService {
       );
     }
   }
+
+  // Send presave confirmation email
+  async sendPresaveConfirmation(
+    email: string,
+    name: string,
+    confirmationLink: string,
+    songTitle: string,
+    artistName: string,
+  ): Promise<void> {
+    try {
+      await this.mailerService.sendMail({
+        to: email,
+        subject: `Confirm Your Presave for ${songTitle}!`,
+        template: 'presave-confirmation',
+        context: {
+          name,
+          confirmationLink,
+          songTitle,
+          artistName,
+        },
+      });
+
+      this.logger.log(
+        `Presave confirmation email sent to ${email} for "${songTitle}"`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to send presave confirmation email to ${email} for "${songTitle}"`,
+        error.stack,
+      );
+      throw new InternalServerErrorException(
+        'Failed to send presave confirmation email.',
+      );
+    }
+  }
 }
