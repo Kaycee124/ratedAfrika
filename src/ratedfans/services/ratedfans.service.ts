@@ -224,52 +224,18 @@ export class RatedFansService {
    *
    * Process:
    * 1. Find page by slug with all necessary relationships
-   * 2. Verify page is published (only show published pages to public)
-   * 3. Transform to public response format (hiding sensitive data)
-   * 4. Include active streaming links and artist social data
+   * 2. Check if page exists
+   * 3. Verify page is published (only show published pages to public)
+   * 4. Return appropriate error if page doesn't exist or isn't published
+   * 5. Transform to public response format (hiding sensitive data)
+   * 6. Include active streaming links and artist social data
    */
   async findPageBySlug(
     slug: string,
   ): Promise<ApiResponse<PublicPageResponseDto>> {
     this.logger.log(`Retrieving page by slug: ${slug}`);
 
-    // Find page with all relationships needed for public display
-    const page = await this.pageRepository.findOne({
-      where: {
-        slug,
-        isPublished: true, // Only show published pages to public
-      },
-      relations: ['artist', 'song', 'links'],
-    });
-
-    if (!page) {
-      throw new HttpException(
-        'Page not found or not published',
-        HttpStatus.NOT_FOUND,
-      );
-    }
-
-    // Transform to public response format
-    const publicResponse = await this.transformToPublicResponse(page);
-
-    return {
-      statusCode: HttpStatus.OK,
-      message: 'Page retrieved successfully',
-      data: publicResponse,
-    };
-  }
-
-  /**
-   * 2025-01-22 23:47: New method for direct /:slug endpoint
-   * Retrieves a RatedFans page by slug and returns appropriate status based on publication state
-   * Returns 404 if page doesn't exist, 403 if unpublished, or page data if published
-   */
-  async findPageBySlugDirect(
-    slug: string,
-  ): Promise<ApiResponse<PublicPageResponseDto>> {
-    this.logger.log(`Retrieving page by slug (direct access): ${slug}`);
-
-    // 2025-01-22 23:47: Find page without isPublished filter to check existence first
+    // Find page without isPublished filter to check existence first
     const page = await this.pageRepository.findOne({
       where: {
         slug,
@@ -277,7 +243,7 @@ export class RatedFansService {
       relations: ['artist', 'song', 'links'],
     });
 
-    // 2025-01-22 23:47: Page doesn't exist at all
+    // Page doesn't exist at all
     if (!page) {
       return {
         statusCode: HttpStatus.NOT_FOUND,
@@ -285,7 +251,7 @@ export class RatedFansService {
       };
     }
 
-    // 2025-01-22 23:47: Page exists but is not published
+    // Page exists but is not published
     if (!page.isPublished) {
       return {
         statusCode: HttpStatus.FORBIDDEN,
@@ -293,7 +259,7 @@ export class RatedFansService {
       };
     }
 
-    // 2025-01-22 23:47: Page is published, return full details
+    // Page is published, return full details
     const publicResponse = await this.transformToPublicResponse(page);
 
     return {
