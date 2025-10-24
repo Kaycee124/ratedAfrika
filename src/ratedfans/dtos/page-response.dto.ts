@@ -91,6 +91,7 @@ export class PageListItemDto {
   // Minimal song/artist data for list view
   songTitle: string;
   artistName: string;
+  coverArtPath?: string; // 2025-10-24: added cover art path
 
   // Quick stats
   totalLinks: number;

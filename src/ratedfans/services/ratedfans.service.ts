@@ -395,6 +395,7 @@ export class RatedFansService {
       .leftJoinAndSelect('page.artist', 'artist')
       .leftJoinAndSelect('page.song', 'song')
       .leftJoinAndSelect('page.links', 'links')
+      .leftJoinAndSelect('page.presaveSignups', 'presaveSignups')
       .where('artist.user.id = :userId', { userId })
       .skip(skip)
       .take(limit);
@@ -439,8 +440,9 @@ export class RatedFansService {
       updatedAt: page.updatedAt,
       songTitle: page.song?.title || page.releaseTitle || 'Your Release', // Provide a fallback
       artistName: page.artist?.name || 'RatedFans Artist',
+      coverArtPath: page.coverArtLink?.url || null, // 2025-10-24: added cover art path from page
       totalLinks: page.links?.length || 0,
-      presavesTATS: page.presaveSignups,
+      totalPresaves: page.presaveSignups?.length || 0,
     }));
 
     return {
