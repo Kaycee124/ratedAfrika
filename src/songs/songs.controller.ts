@@ -65,7 +65,7 @@ export class SongsController {
   // Release Container Endpoints
   @Post('containers')
   @UseGuards(SubscriptionGuard)
-  @RequiredSubscriptions(Sub_Plans.ARTIST, Sub_Plans.LABEL)
+  @RequiredSubscriptions(Sub_Plans.INDEPENDENT, Sub_Plans.PRO, Sub_Plans.LABEL)
   @ApiOperation({ summary: 'Create a new release container (Album/EP)' })
   @ApiBody({ type: CreateReleaseContainerDto })
   @SwaggerApiResponse({
@@ -81,7 +81,7 @@ export class SongsController {
 
   @Patch('containers/:id')
   @UseGuards(ReleaseContainerOwnerGuard)
-  @RequiredSubscriptions(Sub_Plans.ARTIST, Sub_Plans.LABEL)
+  @RequiredSubscriptions(Sub_Plans.INDEPENDENT, Sub_Plans.PRO, Sub_Plans.LABEL)
   @ApiOperation({ summary: 'Update a release container' })
   @ApiParam({ name: 'id', description: 'Release container ID' })
   @ApiBody({ type: UpdateReleaseContainerDto })
@@ -99,7 +99,7 @@ export class SongsController {
 
   @Post('containers/:id/submit')
   @UseGuards(SongOwnerGuard)
-  @RequiredSubscriptions(Sub_Plans.ARTIST, Sub_Plans.LABEL)
+  @RequiredSubscriptions(Sub_Plans.INDEPENDENT, Sub_Plans.PRO, Sub_Plans.LABEL)
   @ApiOperation({ summary: 'Submit a release container for review' })
   @ApiParam({ name: 'id', description: 'Release container ID' })
   @SwaggerApiResponse({
@@ -150,7 +150,7 @@ export class SongsController {
 
   @Delete('containers/:id')
   @UseGuards(SongOwnerGuard)
-  @RequiredSubscriptions(Sub_Plans.ARTIST, Sub_Plans.LABEL)
+  @RequiredSubscriptions(Sub_Plans.INDEPENDENT, Sub_Plans.PRO, Sub_Plans.LABEL)
   @ApiOperation({ summary: 'Delete a release container' })
   @ApiParam({ name: 'id', description: 'Release container ID' })
   @SwaggerApiResponse({
@@ -167,7 +167,7 @@ export class SongsController {
   // Song Endpoints
   @Post()
   @UseGuards(SubscriptionGuard)
-  @RequiredSubscriptions(Sub_Plans.ARTIST, Sub_Plans.LABEL)
+  @RequiredSubscriptions(Sub_Plans.INDEPENDENT, Sub_Plans.PRO, Sub_Plans.LABEL)
   @ApiOperation({ summary: 'Create a new song' })
   @ApiBody({ type: CreateSongDto })
   @SwaggerApiResponse({
@@ -183,7 +183,7 @@ export class SongsController {
 
   @Patch(':id')
   @UseGuards(SongOwnerGuard)
-  @RequiredSubscriptions(Sub_Plans.ARTIST, Sub_Plans.LABEL)
+  @RequiredSubscriptions(Sub_Plans.INDEPENDENT, Sub_Plans.PRO, Sub_Plans.LABEL)
   @ApiOperation({ summary: 'Update a song' })
   @ApiParam({ name: 'id', description: 'Song ID' })
   @ApiBody({ type: UpdateSongDto })
@@ -201,7 +201,7 @@ export class SongsController {
 
   @Post(':id/submit')
   @UseGuards(SongOwnerGuard)
-  @RequiredSubscriptions(Sub_Plans.ARTIST, Sub_Plans.LABEL)
+  @RequiredSubscriptions(Sub_Plans.INDEPENDENT, Sub_Plans.PRO, Sub_Plans.LABEL)
   @ApiOperation({ summary: 'Submit a song for review' })
   @ApiParam({ name: 'id', description: 'Song ID' })
   @SwaggerApiResponse({
@@ -316,7 +316,7 @@ export class SongsController {
 
   @Delete(':id')
   @UseGuards(SongOwnerGuard)
-  @RequiredSubscriptions(Sub_Plans.ARTIST, Sub_Plans.LABEL)
+  @RequiredSubscriptions(Sub_Plans.INDEPENDENT, Sub_Plans.PRO, Sub_Plans.LABEL)
   @ApiOperation({ summary: 'Delete a song' })
   @ApiParam({ name: 'id', description: 'Song ID' })
   @SwaggerApiResponse({

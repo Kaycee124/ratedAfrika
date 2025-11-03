@@ -18,22 +18,24 @@ export class customLoggerClass implements LoggerService {
         new winston.transports.Console({
           format: winston.format.combine(
             winston.format.colorize(),
-            winston.format.printf(({ timestamp, level, message, context, stack }) => {
-              const contextStr = context ? `[${context}]` : '';
-              return `${timestamp} ${level} ${contextStr} ${message}${stack ? '\n' + stack : ''}`;
-            }),
+            winston.format.printf(
+              ({ timestamp, level, message, context, stack }) => {
+                const contextStr = context ? `[${context}]` : '';
+                return `${timestamp} ${level} ${contextStr} ${message}${stack ? '\n' + stack : ''}`;
+              },
+            ),
           ),
         }),
-        
+
         // ERROR logs only
-        new winston.transports.File({ 
+        new winston.transports.File({
           filename: 'logs/error.log',
           level: 'error',
           format: winston.format.json(),
         }),
-        
+
         // ALL logs (info, warn, error)
-        new winston.transports.File({ 
+        new winston.transports.File({
           filename: 'logs/combined.log',
           format: winston.format.json(),
         }),

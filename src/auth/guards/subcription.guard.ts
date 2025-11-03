@@ -52,15 +52,21 @@ export class SubscriptionGuard implements CanActivate {
       });
     }
 
-    // Check for label access to artist features
+    // Check for label access to pro/independent features
     const hasLabelAccess =
       user.subscription === Sub_Plans.LABEL &&
-      requiredSubscriptions.includes(Sub_Plans.ARTIST);
+      (requiredSubscriptions.includes(Sub_Plans.PRO) ||
+        requiredSubscriptions.includes(Sub_Plans.INDEPENDENT));
+
+    // Check for pro access to independent features
+    const hasProAccess =
+      user.subscription === Sub_Plans.PRO &&
+      requiredSubscriptions.includes(Sub_Plans.INDEPENDENT);
 
     // Check if user's subscription is in required plans
     const hasRequiredPlan = requiredSubscriptions.includes(user.subscription);
 
-    if (!hasRequiredPlan && !hasLabelAccess) {
+    if (!hasRequiredPlan && !hasLabelAccess && !hasProAccess) {
       console.log('Subscription Guard - Invalid subscription plan');
       throw new ForbiddenException({
         statusCode: HttpStatus.FORBIDDEN,

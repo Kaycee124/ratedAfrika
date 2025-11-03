@@ -26,9 +26,10 @@ export enum UserRole {
 }
 
 export enum Sub_Plans {
-  ARTIST = 'artist',
-  LABEL = 'label',
   FREE = 'free',
+  INDEPENDENT = 'independent',
+  PRO = 'pro',
+  LABEL = 'label',
 }
 
 @Entity('users')

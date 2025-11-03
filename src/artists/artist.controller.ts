@@ -52,7 +52,7 @@ export class ArtistsController {
 
   @Post('create-profile')
   @UseGuards(SubscriptionGuard)
-  @RequiredSubscriptions(Sub_Plans.ARTIST, Sub_Plans.LABEL)
+  @RequiredSubscriptions(Sub_Plans.INDEPENDENT, Sub_Plans.PRO, Sub_Plans.LABEL)
   @ApiOperation({ summary: 'Create a new artist profile' })
   @ApiBody({ type: CreateArtistDto })
   @SwaggerApiResponse({
@@ -122,7 +122,7 @@ export class ArtistsController {
 
   @Patch(':id')
   @UseGuards(SubscriptionGuard)
-  @RequiredSubscriptions(Sub_Plans.ARTIST, Sub_Plans.LABEL)
+  @RequiredSubscriptions(Sub_Plans.INDEPENDENT, Sub_Plans.PRO, Sub_Plans.LABEL)
   @ApiOperation({ summary: 'Update an artist profile' })
   @ApiParam({ name: 'id', type: String, description: 'Artist ID' })
   @ApiBody({ type: UpdateArtistDto })
@@ -157,7 +157,7 @@ export class ArtistsController {
 
   @Delete(':id')
   @UseGuards(SubscriptionGuard)
-  @RequiredSubscriptions(Sub_Plans.ARTIST, Sub_Plans.LABEL)
+  @RequiredSubscriptions(Sub_Plans.INDEPENDENT, Sub_Plans.PRO, Sub_Plans.LABEL)
   @ApiOperation({ summary: 'Delete an artist profile' })
   @ApiParam({ name: 'id', type: String, description: 'Artist ID' })
   @SwaggerApiResponse({
@@ -201,7 +201,7 @@ export class ArtistsController {
 
   @Post('create-simple')
   @UseGuards(SubscriptionGuard)
-  @RequiredSubscriptions(Sub_Plans.ARTIST, Sub_Plans.LABEL)
+  @RequiredSubscriptions(Sub_Plans.INDEPENDENT, Sub_Plans.PRO, Sub_Plans.LABEL)
   @ApiOperation({ summary: 'Create a new artist profile with name and email' })
   @ApiBody({ type: SimplifiedCreateArtistDto })
   @SwaggerApiResponse({
@@ -236,7 +236,7 @@ export class ArtistsController {
 
   @Post('temp/create-simple')
   @UseGuards(SubscriptionGuard)
-  @RequiredSubscriptions(Sub_Plans.ARTIST, Sub_Plans.LABEL)
+  @RequiredSubscriptions(Sub_Plans.INDEPENDENT, Sub_Plans.PRO, Sub_Plans.LABEL)
   @ApiOperation({
     summary: 'Create a new temporary artist profile with just name',
   })

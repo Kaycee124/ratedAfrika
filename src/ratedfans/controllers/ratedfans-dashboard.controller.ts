@@ -36,7 +36,7 @@ import {
 @ApiTags('RatedFans Dashboard')
 @Controller('artist/ratedfans')
 @UseGuards(JwtAuthGuard, SubscriptionGuard)
-@RequiredSubscriptions(Sub_Plans.ARTIST)
+@RequiredSubscriptions(Sub_Plans.INDEPENDENT, Sub_Plans.PRO)
 @ApiBearerAuth()
 export class RatedFansDashboardController {
   constructor(
