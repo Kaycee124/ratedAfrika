@@ -2,9 +2,10 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class AddRecipientNameToSplitSheetEntry1710000000000 implements MigrationInterface {
     public async up(queryRunner: QueryRunner): Promise<void> {
+        // Check if column exists before adding it (idempotent migration)
         await queryRunner.query(`
             ALTER TABLE "split_sheet_entries"
-            ADD COLUMN "recipientName" character varying;
+            ADD COLUMN IF NOT EXISTS "recipientName" character varying;
         `);
 
         // Update existing entries to use email username as recipient name
