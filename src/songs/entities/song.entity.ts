@@ -167,18 +167,8 @@ export class Song {
   })
   featuredTempArtists: TempArtist[];
 
-  @ManyToMany(() => Collaborator)
-  @JoinTable({
-    name: 'song_collaborators',
-    joinColumn: { name: 'song_id', referencedColumnName: 'id' },
-    inverseJoinColumn: { name: 'collaborator_id', referencedColumnName: 'id' },
-  })
+  @OneToMany('Collaborator', (collaborator: Collaborator) => collaborator.song)
   collaborators: Collaborator[];
-
-  //TODO: remove if ater found to be unimportanat
-
-  // @OneToMany('SongCollaborator', 'song')
-  // songCollaborators: SongCollaborator[];
 
   // Current active splitsheet (for clean queries)
   @Column({ type: 'uuid', nullable: true })

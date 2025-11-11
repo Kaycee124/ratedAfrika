@@ -28,7 +28,7 @@ import { ReleaseType, SongStatus } from '../entities/song.entity';
 import { Artist } from '../../artists/entities/artist.entity';
 import { TempArtist } from '../../artists/entities/temp-artist.entity';
 import { ReleaseContainer } from '../entities/album.entity';
-
+import { CreateCollaboratorDto } from '../../collaborators/dto/collaborator.dto';
 // Shared DTOs for common structures
 export class MixVersionDto {
   @IsString()
@@ -326,10 +326,11 @@ export class CreateSongDto {
   @IsUUID(undefined, { each: true })
   featuredArtistIds?: string[];
 
-  @IsOptional()
   @IsArray()
-  @IsUUID(undefined, { each: true })
-  collaboratorIds?: string[];
+  @IsOptional()
+  @ValidateNested({ each: true }) // This validates each object in the array
+  @Type(() => CreateCollaboratorDto) // This tells the validator what DTO to use
+  collaborators?: CreateCollaboratorDto[];
 
   @IsOptional()
   @IsUUID()

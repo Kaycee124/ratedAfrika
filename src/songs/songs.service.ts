@@ -27,6 +27,7 @@ import { ImageFile } from 'src/storage/entities/image-file.entity';
 import { VideoFile } from 'src/storage/entities/video-file.entity';
 import { StorageService } from 'src/storage/services/storage.service';
 import { SplitSheetService } from 'src/collaborators/splitsheet.service';
+import { CollaboratorService } from 'src/collaborators/collaborators.service';
 
 interface ApiResponse<T = any> {
   statusCode: number;
@@ -66,6 +67,7 @@ export class SongsService {
     private readonly videoFileRepository: Repository<VideoFile>,
     private readonly storageService: StorageService,
     private readonly splitSheetService: SplitSheetService,
+    private readonly collaboratorService: CollaboratorService,
   ) {}
 
   private async checkFileOwnershipOrExistence(
@@ -409,6 +411,9 @@ export class SongsService {
             ),
           )
         : [];
+      // First Change: Implement the collaborator parse logic here
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { collaborators, ...songData } = createDto;
 
       // Create song
       const song = this.songRepository.create({
@@ -420,6 +425,30 @@ export class SongsService {
       });
 
       const savedSong = await this.songRepository.save(song);
+      //NEW CHANGE : November 11, 2025 at 04:30 PM
+      // 2. After song is saved, loop and create collaborators
+      if (collaborators && collaborators.length > 0) {
+        this.logger.log(
+          `Adding ${collaborators.length} credits to new song ${savedSong.id}`,
+        );
+
+        for (const collaboratorDto of collaborators) {
+          try {
+            // Use the CollaboratorService to create the credit
+            // This re-uses all your business logic and validation from that service
+            await this.collaboratorService.addSongCredit(
+              collaboratorDto,
+              savedSong.id,
+              user.id,
+            );
+          } catch (creditError) {
+            // Log a warning but don't fail the entire song creation
+            this.logger.warn(
+              `Failed to add credit '${collaboratorDto.name}' to song ${savedSong.id}: ${creditError.message}`,
+            );
+          }
+        }
+      }
 
       // Update release container if applicable
       if (createDto.releaseContainerId) {

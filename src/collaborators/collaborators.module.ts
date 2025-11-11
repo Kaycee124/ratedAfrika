@@ -1,7 +1,9 @@
-//
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { CollaboratorController } from './collaborators.controller';
+import {
+  CollaboratorController,
+  CollaboratorSearchController,
+} from './collaborators.controller';
 import { CollaboratorService } from './collaborators.service';
 import { Collaborator } from './entities/collaborator.entity';
 import { AuthModule } from '../auth/auth.module';
@@ -12,11 +14,15 @@ import { Song } from '../songs/entities/song.entity';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Collaborator, Song]),
-    AuthModule, // Global module for auth
-    SplitSheetModule, // Import the SplitSheetModule
+    AuthModule,
+    SplitSheetModule,
   ],
   providers: [CollaboratorService],
-  controllers: [CollaboratorController, SplitSheetController],
+  controllers: [
+    CollaboratorController,
+    CollaboratorSearchController,
+    SplitSheetController,
+  ],
   exports: [CollaboratorService],
 })
 export class CollaboratorsModule {}

@@ -16,7 +16,13 @@ export class UpdateSubscriptionPlans1762000000000
       `UPDATE "users" SET "subscription" = 'pro' WHERE "subscription" = 'artist'`,
     );
 
-    // Step 3: Drop old enum type
+    // *** THIS IS THE NEW LINE YOU MUST ADD ***
+    // Step 2.5: Drop the default value constraint
+    await queryRunner.query(
+      `ALTER TABLE "users" ALTER COLUMN "subscription" DROP DEFAULT`,
+    );
+
+    // Step 3: Drop old enum type (This will now succeed)
     await queryRunner.query(
       `DROP TYPE IF EXISTS "public"."users_subscription_enum"`,
     );
@@ -53,6 +59,12 @@ export class UpdateSubscriptionPlans1762000000000
     );
     await queryRunner.query(
       `UPDATE "users" SET "subscription" = 'free' WHERE "subscription" = 'independent'`,
+    );
+
+    // *** THIS IS THE NEW LINE YOU MUST ADD ***
+    // Step 2.5: Drop the default value constraint
+    await queryRunner.query(
+      `ALTER TABLE "users" ALTER COLUMN "subscription" DROP DEFAULT`,
     );
 
     // Step 3: Drop new enum type

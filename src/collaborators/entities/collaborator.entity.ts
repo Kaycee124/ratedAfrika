@@ -1,4 +1,3 @@
-// import { Song } from 'src/songs/entities/song.entity';
 import {
   Entity,
   Column,
@@ -9,12 +8,23 @@ import {
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
+import { Song } from 'src/songs/entities/song.entity';
 import type { User } from 'src/users/user.entity';
-// Enums
+
+//NEW CHANGE: Enums for Collaborator Role
 export enum CollaboratorRole {
-  MIX_ENGINEER = 'engineer',
-  PRODUCER = 'producer',
-  SONG_WRITER = 'writer',
+  PRODUCER = 'Producer',
+  WRITER = 'Writer',
+  COMPOSER = 'Composer',
+  LYRICIST = 'Lyricist',
+  MIX_ENGINEER = 'Mix Engineer',
+  MASTERING_ENGINEER = 'Mastering Engineer',
+  FEATURED_ARTIST = 'Featured Artist',
+  REMIXER = 'Remixer',
+  MUSICIAN = 'Musician',
+  ARRANGER = 'Arranger',
+  // Add other DDEX high-level roles as needed (This is useful for searching for collaborators by role)
+  OTHER = 'Other',
 }
 
 // Base collaborator information
@@ -23,23 +33,46 @@ export class Collaborator {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  // Link to the song this credit is for
+  @Column()
+  songId: string;
+
+  @ManyToOne('Song', (song: Song) => song.collaborators, {
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn({ name: 'songId' })
+  song: Song;
+
+  // Collaborator information
   @Column()
   name: string;
 
-  @Column({ unique: true })
+  @Column() // No longer unique - same person can work on multiple songs
   email: string;
 
-  @Column({ nullable: true })
+  // Role is now a flexible string (not enum)
+  @Column({
+    type: 'enum',
+    enum: CollaboratorRole,
+  })
   role: CollaboratorRole;
 
-  @Column({ nullable: true }) // New: Spotify URL
+  // credit display name ( What shall we display on the credit Page)
+  @Column({ nullable: true })
+  creditedAs: string; // e.g., "Producer", "Executive Producer", "Mix Engineer", "Co-Writer"
+
+  @Column({ nullable: true })
   spotifyUrl?: string;
 
-  @Column({ nullable: true }) // New: Apple Music URL
+  @Column({ nullable: true })
   appleUrl?: string;
 
-  @Column({ nullable: true }) // New: YouTube URL
+  @Column({ nullable: true })
   youtubeUrl?: string;
+
+  // Display order for credits
+  @Column({ type: 'int', nullable: true })
+  displayOrder?: number;
 
   @CreateDateColumn()
   createdAt: Date;
@@ -50,7 +83,7 @@ export class Collaborator {
   @DeleteDateColumn()
   deletedAt?: Date;
 
-  @ManyToOne('users', 'collaborators')
+  @ManyToOne('User', 'collaborators')
   @JoinColumn({ name: 'createdByUserId' })
   createdBy: User;
 
