@@ -13,16 +13,8 @@ export class Migration1762875203663 implements MigrationInterface {
             UPDATE "collaborators" 
             SET "songId" = (
                 ARRAY[
-                    '60c91152-52a2-4bb5-b0f3-5249dd269397',
-                    '6fe19638-e47f-47cd-b3d0-b7ed32c1b744',
-                    '8555047e-210a-436c-a695-c105dec73cfd',
-                    '980223b2-4687-4baa-8955-abb6d152d262',
-                    'a2f4bf8a-ac91-4324-b171-1573001e9eec',
-                    'a6296dec-e682-4e0a-8c39-e1fdfb31bb09',
-                    'c3c313e8-0720-4f8e-9df1-749e4eb19859',
-                    'd2f326e2-700f-457d-a858-ffcc4de58a5d',
-                    'e22c7eec-f6b7-4bfe-ad81-cff96b09468a',
-                    'f0151952-b47a-42c2-a172-4a5be6f19e01'
+                    '15cca3bf-ddf3-465e-ac3d-32b3c49e929e',
+                    '15cca3bf-ddf3-465e-ac3d-32b3c49e929e'
                 ]
             )[floor(random() * 10 + 1)]::uuid
             WHERE "songId" IS NULL
