@@ -16,7 +16,7 @@ export class Migration1762875203663 implements MigrationInterface {
                     '15cca3bf-ddf3-465e-ac3d-32b3c49e929e',
                     '15cca3bf-ddf3-465e-ac3d-32b3c49e929e'
                 ]
-            )[floor(random() * 10 + 1)]::uuid
+            )[floor(random() * 2 + 1)]::uuid
             WHERE "songId" IS NULL
         `);
 
