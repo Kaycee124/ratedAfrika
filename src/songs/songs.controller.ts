@@ -42,6 +42,7 @@ import {
   RequiredSubscriptions,
 } from '../auth/guards/subcription.guard';
 import { Sub_Plans } from '../users/user.entity';
+import { AddArtistToSongDto } from './dtos/song-artist.dto';
 
 interface ApiResponse<T = any> {
   statusCode: number;
@@ -328,5 +329,40 @@ export class SongsController {
     @Request() req,
   ): Promise<ApiResponse> {
     return this.songsService.deleteSong(id, req.user);
+  }
+
+  @Get(':id/artists')
+  @ApiOperation({
+    summary: 'Get all artists (primary, featured, temp) for a song',
+  })
+  @ApiParam({ name: 'id', description: 'Song ID' })
+  @SwaggerApiResponse({
+    status: HttpStatus.OK,
+    description: 'Artists retrieved successfully',
+  })
+  async getSongArtists(@Param('id') id: string): Promise<ApiResponse> {
+    return this.songsService.getSongArtists(id);
+  }
+
+  @Post(':id/artists')
+  @UseGuards(SubscriptionGuard) // Optional: Restrict adding artists to paid plans?
+  @RequiredSubscriptions(Sub_Plans.PRO, Sub_Plans.LABEL)
+  @ApiOperation({
+    summary: 'Add an artist to a song',
+    description:
+      'Add either a registered platform artist (via artistId) or a temporary artist (via tempArtistName) as a featured artist.',
+  })
+  @ApiParam({ name: 'id', description: 'Song ID' })
+  @ApiBody({ type: AddArtistToSongDto })
+  @SwaggerApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'Artist added successfully',
+  })
+  async addArtistToSong(
+    @Param('id') id: string,
+    @Body() addArtistDto: AddArtistToSongDto,
+    @Request() req,
+  ): Promise<ApiResponse> {
+    return this.songsService.addArtistToSong(id, addArtistDto, req.user);
   }
 }

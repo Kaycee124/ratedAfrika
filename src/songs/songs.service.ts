@@ -28,6 +28,10 @@ import { VideoFile } from 'src/storage/entities/video-file.entity';
 import { StorageService } from 'src/storage/services/storage.service';
 import { SplitSheetService } from 'src/collaborators/splitsheet.service';
 import { CollaboratorService } from 'src/collaborators/collaborators.service';
+import {
+  AddArtistToSongDto,
+  SongArtistsResponseDto,
+} from './dtos/song-artist.dto';
 
 interface ApiResponse<T = any> {
   statusCode: number;
@@ -1682,5 +1686,156 @@ export class SongsService {
       coverArtPath: filePaths.coverArtPath,
       previewClip: filePaths.previewClip,
     };
+  }
+  //Top up code :: November 18th below
+  /**
+   * 1. Get all track artists by song ID
+   * Combines Primary, Featured Platform, and Featured Temp artists
+   */
+  async getSongArtists(
+    songId: string,
+  ): Promise<ApiResponse<SongArtistsResponseDto>> {
+    try {
+      const song = await this.songRepository.findOne({
+        where: { id: songId },
+        relations: [
+          'primaryArtist',
+          'featuredPlatformArtists',
+          'featuredTempArtists',
+        ],
+      });
+
+      if (!song) {
+        return {
+          statusCode: HttpStatus.NOT_FOUND,
+          message: 'Song not found',
+        };
+      }
+
+      const response: SongArtistsResponseDto = {
+        primaryArtist: song.primaryArtist,
+        featuredPlatformArtists: song.featuredPlatformArtists || [],
+        featuredTempArtists: song.featuredTempArtists || [],
+        totalArtists:
+          1 +
+          (song.featuredPlatformArtists?.length || 0) +
+          (song.featuredTempArtists?.length || 0),
+      };
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Song artists retrieved successfully',
+        data: response,
+      };
+    } catch (error) {
+      this.logger.error(`Failed to get song artists: ${error.message}`);
+      return {
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: 'Failed to retrieve song artists',
+      };
+    }
+  }
+
+  /**
+   * 2. Add artist to a song
+   * Handles adding either a Platform Artist (by ID) or a Temp Artist (by name)
+   */
+  async addArtistToSong(
+    songId: string,
+    dto: AddArtistToSongDto,
+    user: User,
+  ): Promise<ApiResponse<Song>> {
+    try {
+      // 1. Fetch Song with existing relations
+      const song = await this.songRepository.findOne({
+        where: { id: songId },
+        relations: [
+          'featuredPlatformArtists',
+          'featuredTempArtists',
+          'uploadedBy',
+        ],
+      });
+
+      if (!song) {
+        throw new HttpException('Song not found', HttpStatus.NOT_FOUND);
+      }
+
+      // 2. Authorization Check
+      if (song.uploadedBy?.id !== user.id) {
+        throw new HttpException(
+          'You do not have permission to modify this song',
+          HttpStatus.FORBIDDEN,
+        );
+      }
+
+      // 3. Handle Platform Artist Addition
+      if (dto.artistId) {
+        const artistToAdd = await this.artistRepository.findOne({
+          where: { id: dto.artistId },
+        });
+        if (!artistToAdd) {
+          throw new HttpException(
+            'Artist profile not found',
+            HttpStatus.NOT_FOUND,
+          );
+        }
+
+        // Check if already primary
+        if (song.primaryArtist?.id === artistToAdd.id) {
+          throw new HttpException(
+            'This artist is already the primary artist',
+            HttpStatus.CONFLICT,
+          );
+        }
+
+        // Initialize array if undefined
+        if (!song.featuredPlatformArtists) song.featuredPlatformArtists = [];
+
+        // Check for duplicates
+        const exists = song.featuredPlatformArtists.some(
+          (a) => a.id === artistToAdd.id,
+        );
+        if (!exists) {
+          song.featuredPlatformArtists.push(artistToAdd);
+        }
+      }
+
+      // 4. Handle Temp Artist Addition
+      if (dto.tempArtistName) {
+        // Initialize array if undefined
+        if (!song.featuredTempArtists) song.featuredTempArtists = [];
+
+        // Check if name matches existing temp artist on this song
+        const exists = song.featuredTempArtists.some(
+          (a) => a.name.toLowerCase() === dto.tempArtistName.toLowerCase(),
+        );
+
+        if (!exists) {
+          // Reuse existing TempArtist logic to find or create
+          const tempArtist = await this.createOrUpdateTempArtist({
+            name: dto.tempArtistName,
+            hasStreamingPresence: false,
+          });
+
+          song.featuredTempArtists.push(tempArtist);
+        }
+      }
+
+      // 5. Save and Return
+      const updatedSong = await this.songRepository.save(song);
+
+      return {
+        statusCode: HttpStatus.CREATED,
+        message: 'Artist added to song successfully',
+        data: updatedSong,
+      };
+    } catch (error) {
+      this.logger.error(`Failed to add artist to song: ${error.message}`);
+      if (error instanceof HttpException) throw error;
+      return {
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: 'Failed to add artist to song',
+      };
+    }
   }
 }
