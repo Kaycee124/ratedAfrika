@@ -44,7 +44,9 @@ export class TokenService {
   async generateAccessToken(user: User): Promise<string> {
     // Load user with artist profiles if not already loaded
     let userWithArtists = user;
-    if (!user.artistProfiles) {
+
+    // NEW: Ensure tokenVersion is present. If the user object came from a partial select, it might be missing.
+    if (user.tokenVersion === undefined || !user.artistProfiles) {
       userWithArtists = await this.userRepository.findOne({
         where: { id: user.id },
         relations: ['artistProfiles'],
@@ -52,15 +54,16 @@ export class TokenService {
     }
 
     const payload = {
-      sub: user.id,
-      tokenVersion: user.tokenVersion,
-      email: user.email,
-      name: user.name,
-      subscription: user.subscription,
-      artistProfiles: userWithArtists?.artistProfiles?.map(artist => ({
-        id: artist.id,
-        name: artist.name,
-      })) || [],
+      sub: userWithArtists.id, // Use the fully loaded user object
+      tokenVersion: userWithArtists.tokenVersion, // Use the fully loaded user object
+      email: userWithArtists.email,
+      name: userWithArtists.name,
+      subscription: userWithArtists.subscription,
+      artistProfiles:
+        userWithArtists?.artistProfiles?.map((artist) => ({
+          id: artist.id,
+          name: artist.name,
+        })) || [],
     };
 
     const secret = this.configService.get<string>('JWT_SECRET');

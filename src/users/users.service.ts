@@ -504,6 +504,7 @@ export class UsersService {
         isEmailVerified: true,
         isActive: true,
         artistProfiles: true,
+        tokenVersion: true,
       },
     });
 
