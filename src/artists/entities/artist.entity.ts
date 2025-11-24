@@ -58,7 +58,7 @@ export class Artist {
   @ManyToOne('User', 'artistProfiles')
   user: User;
 
-  @OneToMany('Song', 'artist')
+  @OneToMany('Song', 'primaryArtist')
   songs: Song[];
 
   @ManyToOne('Label', 'artistRoster', {
