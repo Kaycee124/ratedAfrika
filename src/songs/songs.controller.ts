@@ -43,6 +43,11 @@ import {
 } from '../auth/guards/subcription.guard';
 import { Sub_Plans } from '../users/user.entity';
 import { AddArtistToSongDto } from './dtos/song-artist.dto';
+import {
+  UpdateSongTempArtistDto,
+  ArtistType,
+} from './dtos/manage-song-artist.dto';
+import { TempArtist } from 'src/artists/entities/temp-artist.entity';
 
 interface ApiResponse<T = any> {
   statusCode: number;
@@ -365,4 +370,64 @@ export class SongsController {
   ): Promise<ApiResponse> {
     return this.songsService.addArtistToSong(id, addArtistDto, req.user);
   }
+
+  //New block of code :: November 23rd below
+
+  @Delete(':id/artists/:artistId')
+  @UseGuards(SubscriptionGuard)
+  @RequiredSubscriptions(Sub_Plans.PRO, Sub_Plans.LABEL)
+  @ApiOperation({
+    summary: 'Remove an artist from a song',
+    description:
+      'Removes a Featured Platform Artist or a Temp Artist from the song.',
+  })
+  @ApiParam({ name: 'id', description: 'Song ID' })
+  @ApiParam({ name: 'artistId', description: 'ID of the artist to remove' })
+  @ApiQuery({
+    name: 'type',
+    enum: ArtistType,
+    description: 'Type of artist (platform or temp)',
+  })
+  @SwaggerApiResponse({
+    status: HttpStatus.OK,
+    description: 'Artist removed successfully',
+  })
+  async removeArtistFromSong(
+    @Param('id') id: string,
+    @Param('artistId') artistId: string,
+    @Query('type') type: ArtistType,
+    @Request() req,
+  ): Promise<ApiResponse<Song>> {
+    return this.songsService.removeArtistFromSong(id, artistId, type, req.user);
+  }
+
+  @Patch(':id/artists/temp/:tempArtistId')
+  @UseGuards(SubscriptionGuard)
+  @RequiredSubscriptions(Sub_Plans.PRO, Sub_Plans.LABEL)
+  @ApiOperation({
+    summary: 'Update a temporary artist on a song',
+    description:
+      'Updates details (name, links) for a Temporary/Unregistered artist.',
+  })
+  @ApiParam({ name: 'id', description: 'Song ID' })
+  @ApiParam({ name: 'tempArtistId', description: 'ID of the temp artist' })
+  @ApiBody({ type: UpdateSongTempArtistDto })
+  @SwaggerApiResponse({
+    status: HttpStatus.OK,
+    description: 'Artist details updated successfully',
+  })
+  async updateSongTempArtist(
+    @Param('id') id: string,
+    @Param('tempArtistId') tempArtistId: string,
+    @Body() updateDto: UpdateSongTempArtistDto,
+    @Request() req,
+  ): Promise<ApiResponse<TempArtist>> {
+    return this.songsService.updateSongTempArtist(
+      id,
+      tempArtistId,
+      updateDto,
+      req.user,
+    );
+  }
+  //End of block :: November 23rd above
 }

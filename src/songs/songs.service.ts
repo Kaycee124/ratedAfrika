@@ -8,6 +8,10 @@ import {
   ReleaseContainerStatus,
   ReleaseContainerType,
 } from './entities/album.entity';
+import {
+  UpdateSongTempArtistDto,
+  ArtistType,
+} from './dtos/manage-song-artist.dto';
 import { Artist } from '../artists/entities/artist.entity';
 import { TempArtist } from '../artists/entities/temp-artist.entity';
 import { User } from '../users/user.entity';
@@ -1838,4 +1842,153 @@ export class SongsService {
       };
     }
   }
+
+  // Edit and delete endpoints for artists in song
+  /**
+   * Remove an artist (Platform or Temp) from a song
+   */
+  async removeArtistFromSong(
+    songId: string,
+    artistId: string,
+    type: ArtistType,
+    user: User,
+  ): Promise<ApiResponse<Song>> {
+    try {
+      const song = await this.songRepository.findOne({
+        where: { id: songId },
+        relations: [
+          'featuredPlatformArtists',
+          'featuredTempArtists',
+          'primaryArtist',
+          'uploadedBy', // Needed for ownership check
+        ],
+      });
+
+      if (!song) {
+        throw new HttpException('Song not found', HttpStatus.NOT_FOUND);
+      }
+
+      // Authorization Check
+      if (song.uploadedBy?.id !== user.id) {
+        throw new HttpException(
+          'You do not have permission to modify this song',
+          HttpStatus.FORBIDDEN,
+        );
+      }
+
+      // Check if trying to remove Primary Artist (Not allowed via this endpoint)
+      if (song.primaryArtist?.id === artistId) {
+        throw new HttpException(
+          'Cannot remove Primary Artist via this endpoint. Use Update Song to change primary artist.',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      if (type === ArtistType.PLATFORM) {
+        // Remove from featuredPlatformArtists
+        const initialLength = song.featuredPlatformArtists.length;
+        song.featuredPlatformArtists = song.featuredPlatformArtists.filter(
+          (artist) => artist.id !== artistId,
+        );
+
+        if (song.featuredPlatformArtists.length === initialLength) {
+          throw new HttpException(
+            'Platform artist not found on this song',
+            HttpStatus.NOT_FOUND,
+          );
+        }
+      } else if (type === ArtistType.TEMP) {
+        // Remove from featuredTempArtists
+        const initialLength = song.featuredTempArtists.length;
+        song.featuredTempArtists = song.featuredTempArtists.filter(
+          (artist) => artist.id !== artistId,
+        );
+
+        if (song.featuredTempArtists.length === initialLength) {
+          throw new HttpException(
+            'Temporary artist not found on this song',
+            HttpStatus.NOT_FOUND,
+          );
+        }
+      }
+
+      const updatedSong = await this.songRepository.save(song);
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Artist removed successfully',
+        data: updatedSong,
+      };
+    } catch (error) {
+      this.logger.error(`Failed to remove artist: ${error.message}`);
+      if (error instanceof HttpException) throw error;
+      return {
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: 'Failed to remove artist',
+      };
+    }
+  }
+
+  /**
+   * Update a Temp Artist's details on a specific song
+   */
+  async updateSongTempArtist(
+    songId: string,
+    tempArtistId: string,
+    updateDto: UpdateSongTempArtistDto,
+    user: User,
+  ): Promise<ApiResponse<TempArtist>> {
+    try {
+      // 1. Verify Song Ownership
+      const song = await this.songRepository.findOne({
+        where: { id: songId },
+        relations: ['featuredTempArtists', 'uploadedBy'],
+      });
+
+      if (!song) {
+        throw new HttpException('Song not found', HttpStatus.NOT_FOUND);
+      }
+
+      if (song.uploadedBy?.id !== user.id) {
+        throw new HttpException(
+          'You do not have permission to modify this song',
+          HttpStatus.FORBIDDEN,
+        );
+      }
+
+      // 2. Verify Temp Artist exists on this song
+      const tempArtist = song.featuredTempArtists.find(
+        (a) => a.id === tempArtistId,
+      );
+
+      if (!tempArtist) {
+        throw new HttpException(
+          'Temporary artist not found on this song',
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      // 3. Update the TempArtist Entity
+      // Note: Since TempArtists are often unique to a song submission, we update the entity directly.
+      // If logic dictates TempArtists are shared, we might need to clone it here, but usually they are unique per upload context.
+      Object.assign(tempArtist, updateDto);
+
+      const savedTempArtist = await this.tempArtistRepository.save(tempArtist);
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Artist details updated successfully',
+        data: savedTempArtist,
+      };
+    } catch (error) {
+      this.logger.error(`Failed to update temp artist: ${error.message}`);
+      if (error instanceof HttpException) throw error;
+      return {
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: 'Failed to update artist details',
+      };
+    }
+  }
+
+  //End of block :: November 23rd above
 }
