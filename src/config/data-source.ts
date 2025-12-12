@@ -61,7 +61,7 @@ export const datasource = new DataSource({
     PresaveSignup,
     PromoCard,
   ],
-  migrations: ['src/migration/*.ts'],
+  migrations: ['migration/*.ts'],
   ssl: useSSL ? { rejectUnauthorized: false } : false,
   synchronize: false,
 });
