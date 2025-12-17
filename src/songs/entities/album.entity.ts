@@ -117,10 +117,10 @@ export class ReleaseContainer {
   @Column({ type: 'text', nullable: true })
   reviewNotes: string;
 
-  @OneToMany(() => Song, (song) => song.releaseContainer)
+  @OneToMany('Song', (song: Song) => song.releaseContainer)
   tracks: Song[];
 
-  @ManyToOne(() => Artist)
+  @ManyToOne('Artist')
   primaryArtist: Artist;
 
   @CreateDateColumn()

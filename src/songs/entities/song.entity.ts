@@ -190,7 +190,7 @@ export class Song {
   trackNumber: number;
 
   // Relationship to ReleaseContainer
-  @ManyToOne(() => ReleaseContainer, (container) => container.tracks)
+  @ManyToOne('ReleaseContainer', (container: ReleaseContainer) => container.tracks)
   @JoinColumn({ name: 'releaseContainerId' })
   releaseContainer: ReleaseContainer;
 

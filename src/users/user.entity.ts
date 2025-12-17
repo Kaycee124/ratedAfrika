@@ -147,7 +147,7 @@ export class User {
   @OneToMany('ReleaseContainer', 'uploadedBy') // Use string literal for relationship
   releaseContainers: ReleaseContainer[];
 
-  @OneToMany('collaborators', 'createdBy') // String literal!
+  @OneToMany('Collaborator', 'createdBy') // String literal!
   collaborators: Collaborator[];
 }
 
