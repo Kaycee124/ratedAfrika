@@ -76,7 +76,7 @@ export class SongsService {
     private readonly storageService: StorageService,
     private readonly splitSheetService: SplitSheetService,
     private readonly collaboratorService: CollaboratorService,
-  ) {}
+  ) { }
 
   private async checkFileOwnershipOrExistence(
     fileId: string | undefined,
@@ -167,10 +167,10 @@ export class SongsService {
       // Process temporary featured artists
       const tempFeaturedArtists = createDto.tempFeaturedArtists
         ? await Promise.all(
-            createDto.tempFeaturedArtists.map((artistDto) =>
-              this.createOrUpdateTempArtist(artistDto),
-            ),
-          )
+          createDto.tempFeaturedArtists.map((artistDto) =>
+            this.createOrUpdateTempArtist(artistDto),
+          ),
+        )
         : [];
 
       // Create release container
@@ -414,10 +414,10 @@ export class SongsService {
       // Process temporary featured artists
       const tempFeaturedArtists = createDto.tempFeaturedArtists
         ? await Promise.all(
-            createDto.tempFeaturedArtists.map((artistDto) =>
-              this.createOrUpdateTempArtist(artistDto),
-            ),
-          )
+          createDto.tempFeaturedArtists.map((artistDto) =>
+            this.createOrUpdateTempArtist(artistDto),
+          ),
+        )
         : [];
       // First Change: Implement the collaborator parse logic here
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -1514,18 +1514,18 @@ export class SongsService {
             })),
             previewClip: filePaths.previewClip
               ? {
-                  fileId: filePaths.previewClip.fileId,
-                  startTime: filePaths.previewClip.startTime,
-                  endTime: filePaths.previewClip.endTime,
-                  path: filePaths.previewClip.path,
-                }
+                fileId: filePaths.previewClip.fileId,
+                startTime: filePaths.previewClip.startTime,
+                endTime: filePaths.previewClip.endTime,
+                path: filePaths.previewClip.path,
+              }
               : undefined,
             musicVideo: filePaths.musicVideo
               ? {
-                  url: filePaths.musicVideo.url,
-                  thumbnailId: filePaths.musicVideo.thumbnailId,
-                  thumbnailPath: filePaths.musicVideo.thumbnailPath,
-                }
+                url: filePaths.musicVideo.url,
+                thumbnailId: filePaths.musicVideo.thumbnailId,
+                thumbnailPath: filePaths.musicVideo.thumbnailPath,
+              }
               : undefined,
             currentSplitSheetId: splitSheetInfo?.currentSplitSheetId || null,
             currentSplitSheet: splitSheetInfo?.currentSplitSheet || ({} as any),
@@ -1559,18 +1559,18 @@ export class SongsService {
                 })),
                 previewClip: trackFilePaths.previewClip
                   ? {
-                      fileId: trackFilePaths.previewClip.fileId,
-                      startTime: trackFilePaths.previewClip.startTime,
-                      endTime: trackFilePaths.previewClip.endTime,
-                      path: trackFilePaths.previewClip.path,
-                    }
+                    fileId: trackFilePaths.previewClip.fileId,
+                    startTime: trackFilePaths.previewClip.startTime,
+                    endTime: trackFilePaths.previewClip.endTime,
+                    path: trackFilePaths.previewClip.path,
+                  }
                   : undefined,
                 musicVideo: trackFilePaths.musicVideo
                   ? {
-                      url: trackFilePaths.musicVideo.url,
-                      thumbnailId: trackFilePaths.musicVideo.thumbnailId,
-                      thumbnailPath: trackFilePaths.musicVideo.thumbnailPath,
-                    }
+                    url: trackFilePaths.musicVideo.url,
+                    thumbnailId: trackFilePaths.musicVideo.thumbnailId,
+                    thumbnailPath: trackFilePaths.musicVideo.thumbnailPath,
+                  }
                   : undefined,
                 currentSplitSheetId:
                   splitSheetInfo?.currentSplitSheetId || null,
@@ -1617,18 +1617,18 @@ export class SongsService {
                 })),
                 previewClip: trackFilePaths.previewClip
                   ? {
-                      fileId: trackFilePaths.previewClip.fileId,
-                      startTime: trackFilePaths.previewClip.startTime,
-                      endTime: trackFilePaths.previewClip.endTime,
-                      path: trackFilePaths.previewClip.path,
-                    }
+                    fileId: trackFilePaths.previewClip.fileId,
+                    startTime: trackFilePaths.previewClip.startTime,
+                    endTime: trackFilePaths.previewClip.endTime,
+                    path: trackFilePaths.previewClip.path,
+                  }
                   : undefined,
                 musicVideo: trackFilePaths.musicVideo
                   ? {
-                      url: trackFilePaths.musicVideo.url,
-                      thumbnailId: trackFilePaths.musicVideo.thumbnailId,
-                      thumbnailPath: trackFilePaths.musicVideo.thumbnailPath,
-                    }
+                    url: trackFilePaths.musicVideo.url,
+                    thumbnailId: trackFilePaths.musicVideo.thumbnailId,
+                    thumbnailPath: trackFilePaths.musicVideo.thumbnailPath,
+                  }
                   : undefined,
                 currentSplitSheetId:
                   splitSheetInfo?.currentSplitSheetId || null,
@@ -1885,8 +1885,21 @@ export class SongsService {
       }
 
       if (type === ArtistType.PLATFORM) {
+        // Initialize array if undefined/null to prevent crash
+        if (!song.featuredPlatformArtists) {
+          song.featuredPlatformArtists = [];
+        }
+
         // Remove from featuredPlatformArtists
         const initialLength = song.featuredPlatformArtists.length;
+
+        if (initialLength === 0) {
+          throw new HttpException(
+            'No platform artists found on this song',
+            HttpStatus.NOT_FOUND,
+          );
+        }
+
         song.featuredPlatformArtists = song.featuredPlatformArtists.filter(
           (artist) => artist.id !== artistId,
         );
@@ -1898,8 +1911,21 @@ export class SongsService {
           );
         }
       } else if (type === ArtistType.TEMP) {
+        // Initialize array if undefined/null to prevent crash
+        if (!song.featuredTempArtists) {
+          song.featuredTempArtists = [];
+        }
+
         // Remove from featuredTempArtists
         const initialLength = song.featuredTempArtists.length;
+
+        if (initialLength === 0) {
+          throw new HttpException(
+            'No temporary artists found on this song',
+            HttpStatus.NOT_FOUND,
+          );
+        }
+
         song.featuredTempArtists = song.featuredTempArtists.filter(
           (artist) => artist.id !== artistId,
         );
@@ -1910,6 +1936,11 @@ export class SongsService {
             HttpStatus.NOT_FOUND,
           );
         }
+      } else {
+        throw new HttpException(
+          'Invalid artist type. Must be "platform" or "temp"',
+          HttpStatus.BAD_REQUEST,
+        );
       }
 
       const updatedSong = await this.songRepository.save(song);
