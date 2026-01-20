@@ -23,11 +23,9 @@ import { RatedFansLink } from 'src/ratedfans/entities/ratedfans-link.entity';
 import { PresaveSignup } from 'src/ratedfans/entities/presave-signup.entity';
 import { PromoCard } from 'src/ratedfans/entities/promo-card.entity';
 import * as dotenv from 'dotenv';
-const useSSL = process.env.DATABASE_SSL === 'true';
-
 // Load environment variables
 dotenv.config();
-
+const useSSL = process.env.DATABASE_SSL === 'true';
 export const datasource = new DataSource({
   type: 'postgres',
   host: process.env.DATABASE_HOST,
